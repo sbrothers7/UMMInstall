@@ -83,7 +83,6 @@ expect {
 expect eof
 EOF
 
-    rm -rf "$APP/Contents/Resources/Data/Managed/UnityModManager"
     echo "Note: the arm64 slice of the game binary was previously stripped. Verify integrity via Steam (Properties > Local Files) to restore it if desired."
 else
     # ============================================================
@@ -114,5 +113,8 @@ else
     echo "Removing Unity Mod Manager via MacTuiInstaller..."
     "$INSTALLER_BIN" --remove --yes --game "$APP"
 fi
+
+# MacTuiInstaller --remove leaves the UnityModManager directory (and the DLL) remove it detection works after uninstall
+rm -rf "$APP/Contents/Resources/Data/Managed/UnityModManager"
 
 echo "Done! Unity Mod Manager has been uninstalled."
