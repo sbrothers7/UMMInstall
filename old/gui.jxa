@@ -1,0 +1,65 @@
+ObjC.import('Cocoa');
+ObjC.import('WebKit');
+
+var app = $.NSApplication.sharedApplication;
+app.setActivationPolicy($.NSApplicationActivationPolicyRegular);
+
+var screen = $.NSScreen.mainScreen.frame;
+var w = 480, h = 620;
+var x = (screen.size.width - w) / 2;
+var y = (screen.size.height - h) / 2;
+
+var win = $.NSWindow.alloc.initWithContentRectStyleMaskBackingDefer(
+  $.NSMakeRect(x, y, w, h),
+  $.NSTitledWindowMask | $.NSClosableWindowMask,
+  $.NSBackingStoreBuffered, false
+);
+win.title = $('ADOFAI Mod Manager');
+win.level = $.NSFloatingWindowLevel;
+win.titlebarAppearsTransparent = true;
+win.backgroundColor = $.NSColor.colorWithRedGreenBlueAlpha(0.129, 0.145, 0.161, 1.0);
+win.releasedWhenClosed = false;
+
+var config = $.WKWebViewConfiguration.alloc.init;
+var wv = $.WKWebView.alloc.initWithFrameConfiguration(win.contentView.bounds, config);
+wv.autoresizingMask = $.NSViewWidthSizable | $.NSViewHeightSizable;
+wv.setValueForKey(false, 'drawsBackground');
+win.contentView.addSubview(wv);
+
+var url = $.NSURL.fileURLWithPath('/tmp/gui.html');
+wv.loadFileURLAllowingReadAccessToURL(url, url.URLByDeletingLastPathComponent);
+
+win.makeKeyAndOrderFront(null);
+app.activateIgnoringOtherApps(true);
+
+var done = false;
+var resultFile = '/tmp/installer_result.txt';
+
+function writeResult(str) {
+  var nsStr = $.NSString.alloc.initWithUTF8String(str);
+  nsStr.writeToFileAtomicallyEncodingError(resultFile, true, $.NSUTF8StringEncoding, null);
+}
+
+var timer = $.NSTimer.scheduledTimerWithTimeIntervalRepeatsBlock(0.2, true, function(t) {
+  wv.evaluateJavaScriptCompletionHandler('document.title', function(res, err) {
+    if (res && res.js && res.js.indexOf('RESULT:') === 0) {
+      var val = res.js.substring(7);
+      writeResult(val);
+      done = true;
+      app.terminate(null);
+    }
+  });
+});
+
+var nc = $.NSNotificationCenter.defaultCenter;
+nc.addObserverForNameObjectQueueUsingBlock(
+  $.NSWindowWillCloseNotification, win, null,
+  function(n) {
+    if (!done) {
+      writeResult('CANCEL');
+    }
+    app.terminate(null);
+  }
+);
+
+app.run();

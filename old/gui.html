@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>ADOFAI Mod Manager</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+body { background: #212529; color: #dee2e6; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; -webkit-user-select: none; }
+h5 { color: #f8f9fa; }
+.form-check { padding: 8px 12px 8px 40px; border-radius: 6px; margin-bottom: 4px; }
+.form-check:hover { background: #2c3034; }
+.form-check-input:checked { background-color: #0d6efd; border-color: #0d6efd; }
+.form-check-label { cursor: pointer; font-size: 14px; }
+.form-check-input { cursor: pointer; }
+.btn-row { margin-top: 20px; display: flex; gap: 8px; justify-content: flex-end; }
+.select-all-link { font-size: 13px; cursor: pointer; }
+</style>
+</head>
+<body>
+<h5 class="mb-1">ADOFAI Mod Manager</h5>
+<p class="text-secondary small mb-3">Select mods to install with Unity Mod Manager</p>
+<div class="d-flex justify-content-end mb-2">
+  <a class="select-all-link text-primary" id="toggleAll" onclick="toggleAll()">Select All</a>
+</div>
+<div id="modList"></div>
+<div class="btn-row">
+  <button class="btn btn-outline-secondary btn-sm" onclick="send('CANCEL')">Cancel</button>
+  <button class="btn btn-outline-secondary btn-sm" onclick="send('SKIP')">Skip Mods</button>
+  <button class="btn btn-primary btn-sm" onclick="doInstall()">Install</button>
+</div>
+<script>
+var MODS = [%%MOD_LIST%%];
+var sel = {};
+var listEl = document.getElementById('modList');
+MODS.forEach(function(name) {
+  var div = document.createElement('div');
+  div.className = 'form-check';
+  var id = 'mod_' + name;
+  div.innerHTML = '<input class="form-check-input" type="checkbox" id="' + id + '" onchange="toggle(\'' + name + '\')">' +
+    '<label class="form-check-label" for="' + id + '">' + name + '</label>';
+  listEl.appendChild(div);
+});
+function toggle(name) {
+  if (sel[name]) delete sel[name]; else sel[name] = true;
+  updateBtn();
+}
+function updateBtn() {
+  var count = Object.keys(sel).length;
+  document.getElementById('toggleAll').textContent = count === MODS.length ? 'Deselect All' : 'Select All';
+}
+function toggleAll() {
+  var all = Object.keys(sel).length === MODS.length;
+  MODS.forEach(function(name) {
+    var cb = document.getElementById('mod_' + name);
+    if (all) { delete sel[name]; cb.checked = false; }
+    else { sel[name] = true; cb.checked = true; }
+  });
+  updateBtn();
+}
+function send(msg) { document.title = 'RESULT:' + msg; }
+function doInstall() {
+  var chosen = Object.keys(sel);
+  if (chosen.length === 0) { send('SKIP'); return; }
+  send('INSTALL:' + chosen.join(','));
+}
+</script>
+</body>
+</html>

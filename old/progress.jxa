@@ -1,0 +1,73 @@
+ObjC.import('Cocoa');
+ObjC.import('WebKit');
+
+var app = $.NSApplication.sharedApplication;
+app.setActivationPolicy($.NSApplicationActivationPolicyRegular);
+
+var screen = $.NSScreen.mainScreen.frame;
+var w = 540, h = 480;
+var x = (screen.size.width - w) / 2;
+var y = (screen.size.height - h) / 2;
+
+var win = $.NSWindow.alloc.initWithContentRectStyleMaskBackingDefer(
+  $.NSMakeRect(x, y, w, h),
+  $.NSTitledWindowMask | $.NSClosableWindowMask,
+  $.NSBackingStoreBuffered, false
+);
+win.title = $('ADOFAI Mod Manager');
+win.level = $.NSFloatingWindowLevel;
+win.titlebarAppearsTransparent = true;
+win.backgroundColor = $.NSColor.colorWithRedGreenBlueAlpha(0.129, 0.145, 0.161, 1.0);
+win.releasedWhenClosed = false;
+
+var config = $.WKWebViewConfiguration.alloc.init;
+// Allow the local HTML to XHR sibling files (the live progress log)
+config.preferences.setValueForKey(true, 'allowFileAccessFromFileURLs');
+config.setValueForKey(true, 'allowUniversalAccessFromFileURLs');
+var wv = $.WKWebView.alloc.initWithFrameConfiguration(win.contentView.bounds, config);
+wv.autoresizingMask = $.NSViewWidthSizable | $.NSViewHeightSizable;
+wv.setValueForKey(false, 'drawsBackground');
+win.contentView.addSubview(wv);
+
+// loadFileURLAllowingReadAccessToURL grants the page read access to /tmp,
+// so the HTML can XMLHttpRequest /tmp/installer_progress.log directly.
+var htmlURL = $.NSURL.fileURLWithPath('/tmp/progress.html');
+var tmpURL = $.NSURL.fileURLWithPath('/tmp');
+wv.loadFileURLAllowingReadAccessToURL(htmlURL, tmpURL);
+
+win.makeKeyAndOrderFront(null);
+app.activateIgnoringOtherApps(true);
+
+var resultFile = '/tmp/installer_progress_result.txt';
+
+function writeResult(str) {
+  try {
+    var nsStr = $.NSString.alloc.initWithUTF8String(str);
+    nsStr.writeToFileAtomicallyEncodingError(resultFile, true, $.NSUTF8StringEncoding, null);
+  } catch (e) {}
+}
+
+// Only thing we need to poll for: did the user click Close?
+var pollTimer = $.NSTimer.scheduledTimerWithTimeIntervalRepeatsBlock(0.5, true, function(t) {
+  try {
+    wv.evaluateJavaScriptCompletionHandler('document.title', function(res, _e) {
+      try {
+        if (res && typeof res.js === 'string' && res.js.indexOf('RESULT:') === 0) {
+          writeResult(res.js.substring(7));
+          app.terminate(null);
+        }
+      } catch (e) {}
+    });
+  } catch (e) {}
+});
+
+var nc = $.NSNotificationCenter.defaultCenter;
+nc.addObserverForNameObjectQueueUsingBlock(
+  $.NSWindowWillCloseNotification, win, null,
+  function(n) {
+    try { writeResult('CLOSE'); } catch (e) {}
+    app.terminate(null);
+  }
+);
+
+app.run();
