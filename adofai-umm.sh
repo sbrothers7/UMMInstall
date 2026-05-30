@@ -21,8 +21,17 @@ elif [ -x /usr/local/bin/brew ]; then
 fi
 
 if ! command -v brew &>/dev/null; then
-    echo "error:Homebrew is required but not installed." >&2
-    echo "error:Install it from https://brew.sh and re-run this installer." >&2
+    echo "Homebrew not found — installing (you may be prompted for your password)..."
+    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    if [ -x /opt/homebrew/bin/brew ]; then
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+    elif [ -x /usr/local/bin/brew ]; then
+        eval "$(/usr/local/bin/brew shellenv)"
+    fi
+fi
+
+if ! command -v brew &>/dev/null; then
+    echo "error:Homebrew install failed. Install manually from https://brew.sh and re-run." >&2
     exit 1
 fi
 
