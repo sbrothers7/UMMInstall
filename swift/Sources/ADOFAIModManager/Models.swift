@@ -1,0 +1,26 @@
+import Foundation
+
+enum LogLevel: String {
+    case info, ok, error, detail
+}
+
+enum Language: String, CaseIterable {
+    case en
+    case ko
+}
+
+struct LogEntry: Identifiable, Equatable {
+    let id = UUID()
+    let level: LogLevel
+    let message: String
+}
+
+enum InstallPhase: Equatable {
+    case confirm
+    case needsVerify
+    case installed
+    case picker
+    case installing
+    case uninstalling
+    case complete(success: Bool, message: String)
+}

@@ -1,0 +1,7 @@
+.build/
+.swiftpm/
+DerivedData/
+Package.resolved
+*.xcodeproj/
+macOS ADOFAI Mod Installer.app/
+macOS ADOFAI Mod Installer.zip
