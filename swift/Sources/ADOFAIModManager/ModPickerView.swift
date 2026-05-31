@@ -29,7 +29,7 @@ struct ModPickerView: View {
 
             ScrollView {
                 VStack(spacing: 2) {
-                    ForEach(ModRegistry.all) { mod in
+                    ForEach(vm.visibleMods) { mod in
                         ModRow(mod: mod)
                     }
                 }
@@ -51,14 +51,14 @@ struct ModPickerView: View {
     }
 
     private var allSelected: Bool {
-        vm.selectedMods.count == ModRegistry.all.count
+        vm.selectedMods.count == vm.visibleMods.count
     }
 
     private func toggleAll() {
         if allSelected {
             vm.selectedMods.removeAll()
         } else {
-            vm.selectedMods = Set(ModRegistry.all.map { $0.id })
+            vm.selectedMods = Set(vm.visibleMods.map { $0.id })
         }
     }
 }

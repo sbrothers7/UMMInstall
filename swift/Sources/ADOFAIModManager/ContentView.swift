@@ -6,6 +6,8 @@ struct ContentView: View {
     var body: some View {
         Group {
             switch vm.phase {
+            case .updating:
+                UpdatingView()
             case .confirm:
                 ConfirmView()
             case .needsVerify:

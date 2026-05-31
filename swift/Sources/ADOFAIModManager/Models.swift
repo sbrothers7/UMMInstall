@@ -16,6 +16,7 @@ struct LogEntry: Identifiable, Equatable {
 }
 
 enum InstallPhase: Equatable {
+    case updating
     case confirm
     case needsVerify
     case installed

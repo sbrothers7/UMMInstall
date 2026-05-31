@@ -7,6 +7,19 @@ APP_NAME="macOS ADOFAI Mod Installer"
 BUNDLE_ID="com.sbrothers.macos-adofai-mod-installer"
 ICON_SRC="../icon.png"
 
+VERSION="1.0.0"
+WANT_ZIP=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --zip) WANT_ZIP=1; shift ;;
+        --version|-v) VERSION="$2"; shift 2 ;;
+        --version=*) VERSION="${1#--version=}"; shift ;;
+        *) echo "Unknown argument: $1" >&2; exit 1 ;;
+    esac
+done
+VERSION="${VERSION#v}"
+echo "Bundle version: $VERSION"
+
 # Use /tmp for build artifacts — some source-tree locations (iCloud-synced
 # directories) confuse SwiftPM's SQLite build database with disk I/O errors.
 BUILD_PATH="/tmp/adofai-mm-build"
@@ -72,9 +85,9 @@ cat > "$APP_DIR/Contents/Info.plist" <<EOF
   <key>CFBundleDisplayName</key>
   <string>$APP_NAME</string>
   <key>CFBundleVersion</key>
-  <string>1.0</string>
+  <string>$VERSION</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.0</string>
+  <string>$VERSION</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleIconFile</key>
@@ -92,7 +105,7 @@ EOF
 codesign --force --deep --sign - "$APP_DIR"
 echo "Built: $APP_DIR"
 
-if [ "$1" = "--zip" ]; then
+if [ "$WANT_ZIP" = "1" ]; then
     rm -f "$APP_NAME.zip"
     ditto -c -k --keepParent "$APP_DIR" "$APP_NAME.zip"
     echo "Packaged: $APP_NAME.zip"

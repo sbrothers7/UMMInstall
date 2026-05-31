@@ -15,7 +15,7 @@ enum ModDownloadError: LocalizedError {
 }
 
 enum ModDownloader {
-    static func install(mod: Mod, into modsDir: String) async throws {
+    static func install(mod: Mod, isGameV2: Bool, into modsDir: String) async throws {
         let tmpZip = "/tmp/adofai_mod_\(mod.id).zip"
         let tmpExtract = "/tmp/adofai_extract_\(mod.id)"
         let fm = FileManager.default
@@ -25,7 +25,7 @@ enum ModDownloader {
             try? fm.removeItem(atPath: tmpExtract)
         }
 
-        try await Network.downloadFile(from: mod.url, to: tmpZip)
+        try await Network.downloadFile(from: mod.resolvedURL(isGameV2: isGameV2), to: tmpZip)
 
         try? fm.removeItem(atPath: tmpExtract)
         try fm.createDirectory(atPath: tmpExtract, withIntermediateDirectories: true)

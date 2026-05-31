@@ -83,6 +83,8 @@ expect {
 expect eof
 EOF
 
+    rm -rf "$HOME/Downloads/UnityModManager.zip" "$HOME/Downloads/UnityModManagerInstaller"
+
     echo "Note: the arm64 slice of the game binary was previously stripped. Verify integrity via Steam (Properties > Local Files) to restore it if desired."
 else
     # ============================================================

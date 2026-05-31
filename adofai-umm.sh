@@ -110,6 +110,8 @@ EOF
         mv "$EXE.tmp" "$EXE"
         chmod +x "$EXE"
     fi
+
+    rm -rf "$HOME/Downloads/UnityModManager.zip" "$HOME/Downloads/UnityModManagerInstaller"
 else
     # ============================================================
     # v3.x+: Unity 6 build (use kkorenn/unity-mod-manager)

@@ -1,8 +1,8 @@
 # macOS ADOFAI Mod Installer
 
-A native macOS installer for [Unity Mod Manager](https://www.nexusmods.com/site/mods/21) (UMM) on [A Dance of Fire and Ice](https://store.steampowered.com/app/977950/A_Dance_of_Fire_and_Ice/). Handles both the legacy Unity 2022 build (v2.x) and the current Unity 6 build (v3.x+), and bundles a curated picker of popular mods.
+A native macOS installer for [Unity Mod Manager](https://www.nexusmods.com/site/mods/21) (UMM) on [A Dance of Fire and Ice](https://store.steampowered.com/app/977950/A_Dance_of_Fire_and_Ice/). Handles both the legacy Unity 2022 build (v2.x) and the current Unity 6 build (v3.x+), and bundles a mod select/installer.
 
-[A Dance of Fire and Ice](https://store.steampowered.com/app/977950/A_Dance_of_Fire_and_Ice/)용 [Unity Mod Manager](https://www.nexusmods.com/site/mods/21) (UMM)의 네이티브 macOS 설치기입니다. 레거시 Unity 2022 빌드 (v2.x)와 현재 Unity 6 빌드 (v3.x+) 모두를 지원하며, 인기 모드를 선별한 선택기를 포함합니다.
+[A Dance of Fire and Ice](https://store.steampowered.com/app/977950/A_Dance_of_Fire_and_Ice/)용 [Unity Mod Manager](https://www.nexusmods.com/site/mods/21) (UMM)의 네이티브 macOS 설치기입니다. 레거시 Unity 2022 빌드 (v2.x)와 현재 Unity 6 빌드 (v3.x+) 모두를 지원하며, 모드 선택 메뉴를 포함합니다.
 
 ## Auto-installer Download | 자동설치기 다운로드
 
@@ -37,9 +37,10 @@ SwiftUI 앱을 빌드합니다:
 
 ```bash
 cd swift
-./build.sh              # host arch; requires Swift CLI tools | 호스트 아키텍처; Swift CLI 도구 필요
-./build.sh --zip        # also produce a distributable .zip | 배포용 .zip도 생성
-UNIVERSAL=1 ./build.sh  # universal arm64+x86_64 (requires full Xcode) | 유니버설 arm64+x86_64 (전체 Xcode 필요)
+./build.sh                              # host arch; requires Swift CLI tools | 호스트 아키텍처; Swift CLI 도구 필요
+./build.sh --version 1.0.1              # set bundle version (matches GitHub release tag) | 번들 버전 설정 (GitHub 릴리스 태그와 일치)
+./build.sh --version 1.0.1 --zip        # also produce a distributable .zip | 배포용 .zip도 생성
+UNIVERSAL=1 ./build.sh --version 1.0.1  # universal arm64+x86_64 (requires full Xcode) | 유니버설 arm64+x86_64 (전체 Xcode 필요)
 ```
 
 ## Version-specific Notes | 버전별 참고 사항

@@ -4,7 +4,7 @@ import AppKit
 
 @MainActor
 final class InstallerViewModel: ObservableObject {
-    @Published var phase: InstallPhase = .confirm
+    @Published var phase: InstallPhase = .updating
     @Published var gameVersion: String?
     @Published var logEntries: [LogEntry] = []
     @Published var subtitle: String = ""
@@ -24,6 +24,30 @@ final class InstallerViewModel: ObservableObject {
     func t(_ en: String, _ ko: String) -> String { language == .ko ? ko : en }
 
     func bootstrap() {
+        subtitle = t("Checking for updates…", "업데이트 확인 중…")
+        phase = .updating
+        Task { await runUpdateCheckThenContinue() }
+    }
+
+    private func runUpdateCheckThenContinue() async {
+        do {
+            let latest = try await Updater.fetchLatest()
+            if Updater.isNewer(latest.tag, than: Updater.currentVersion) {
+                subtitle = t("Updating to \(latest.tag)…", "\(latest.tag) (으)로 업데이트 중…")
+                try await Updater.performUpdate(downloadURL: latest.downloadURL)
+                // performUpdate spawns a detached helper that will replace the
+                // bundle and re-open it once we exit. Quit so the swap can run.
+                await MainActor.run { NSApp.terminate(nil) }
+                return
+            }
+        } catch {
+            // Network down / rate-limited / malformed release — fall through.
+        }
+        subtitle = ""
+        continueBootstrap()
+    }
+
+    private func continueBootstrap() {
         detectGameVersion()
         if isUMMInstalled() {
             phase = .installed
@@ -95,6 +119,17 @@ final class InstallerViewModel: ObservableObject {
     }
 
     var isGameV2: Bool { gameVersion?.hasPrefix("2.") == true }
+
+    // TEMP: these mods have no v3.1.0-compatible release yet (DesyncFix is now baked into the game). Hide them on v3.x+ until upstream ships updates.
+    var visibleMods: [Mod] {
+        if isGameV2 {
+            return ModRegistry.all.filter { !$0.v3Only }
+        }
+        let v3Excluded: Set<String> = [
+            "AdofaiTweaks", "TUFHelper", "XPerfect", "DesyncFix", "TogetherBootstrap"
+        ]
+        return ModRegistry.all.filter { !v3Excluded.contains($0.id) }
+    }
 
     var confirmationText: String {
         let v = gameVersion ?? "?"
@@ -260,7 +295,7 @@ final class InstallerViewModel: ObservableObject {
             append(.info, t("Downloading \(mod.id) (\(i)/\(n))…",
                             "\(mod.id) 다운로드 중 (\(i)/\(n))…"))
             do {
-                try await ModDownloader.install(mod: mod, into: Self.modsPath)
+                try await ModDownloader.install(mod: mod, isGameV2: isGameV2, into: Self.modsPath)
                 append(.ok, t("\(mod.id) installed.", "\(mod.id) 설치 완료."))
             } catch {
                 append(.error, t("\(mod.id) failed to install.", "\(mod.id) 설치 실패."))
