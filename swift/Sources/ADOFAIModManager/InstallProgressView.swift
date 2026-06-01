@@ -53,9 +53,9 @@ struct InstallProgressView: View {
 
     private var progressSubtitle: String {
         switch vm.phase {
-        case .installing, .uninstalling: return vm.subtitle
-        case .complete(_, let msg):      return msg
-        default:                         return ""
+        case .installingBrew, .installing, .uninstalling: return vm.subtitle
+        case .complete(_, let msg):                       return msg
+        default:                                          return ""
         }
     }
 

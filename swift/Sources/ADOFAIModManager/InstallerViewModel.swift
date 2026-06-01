@@ -126,7 +126,7 @@ final class InstallerViewModel: ObservableObject {
             return ModRegistry.all.filter { !$0.v3Only }
         }
         let v3Excluded: Set<String> = [
-            "AdofaiTweaks", "TUFHelper", "XPerfect", "DesyncFix", "TogetherBootstrap"
+            "AdofaiTweaks", "TUFHelper", "XPerfect", "DesyncFix", "TogetherBootstrap", "PACL2"
         ]
         return ModRegistry.all.filter { !v3Excluded.contains($0.id) }
     }
@@ -164,6 +164,8 @@ final class InstallerViewModel: ObservableObject {
                   • git, .NET SDK (if not installed)
 
                 The native MacTuiInstaller from kkorenn/unity-mod-manager will be fetched and built, then run to patch the game.
+
+                ⚠️ On Apple Silicon, make sure Steam is NOT set to "Open using Rosetta" (right-click Steam.app → Get Info). The native installer fails if Steam runs under Rosetta.
                 """,
                 """
                 ADOFAI \(v) 감지됨 — 네이티브 설치 프로그램을 사용합니다.
@@ -173,6 +175,8 @@ final class InstallerViewModel: ObservableObject {
                   • git, .NET SDK (설치되지 않은 경우)
 
                 kkorenn/unity-mod-manager의 네이티브 MacTuiInstaller를 내려받아 빌드한 후 실행하여 게임을 패치합니다.
+
+                ⚠️ Apple Silicon에서는 Steam.app이 "Rosetta를 사용하여 열기"로 설정되어 있지 않은지 확인하세요 (Steam.app 우클릭 → 정보 가져오기). Steam이 Rosetta로 실행되면 네이티브 설치 프로그램이 실패합니다.
                 """
             )
         } else {
@@ -185,6 +189,8 @@ final class InstallerViewModel: ObservableObject {
                   • git, .NET SDK (if not installed)
 
                 The native MacTuiInstaller from kkorenn/unity-mod-manager will be fetched and built, then run to patch the game.
+
+                ⚠️ On Apple Silicon, make sure Steam is NOT set to "Open using Rosetta" (right-click Steam.app → Get Info). The native installer fails if Steam runs under Rosetta.
                 """,
                 """
                 ADOFAI 버전을 감지하지 못했습니다 — 기본 네이티브 설치 프로그램을 사용합니다.
@@ -194,6 +200,8 @@ final class InstallerViewModel: ObservableObject {
                   • git, .NET SDK (설치되지 않은 경우)
 
                 kkorenn/unity-mod-manager의 네이티브 MacTuiInstaller를 내려받아 빌드한 후 실행하여 게임을 패치합니다.
+
+                ⚠️ Apple Silicon에서는 Steam.app이 "Rosetta를 사용하여 열기"로 설정되어 있지 않은지 확인하세요 (Steam.app 우클릭 → 정보 가져오기). Steam이 Rosetta로 실행되면 네이티브 설치 프로그램이 실패합니다.
                 """
             )
         }
@@ -227,36 +235,41 @@ final class InstallerViewModel: ObservableObject {
         FileManager.default.fileExists(atPath: "/usr/local/bin/brew")
     }
 
-    private func openTerminalForBrewInstall() {
-        let cmd = #"/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""#
-        let script = """
-        tell application "Terminal"
-            activate
-            do script "\(cmd)"
-        end tell
-        """
-        let osa = Process()
-        osa.launchPath = "/usr/bin/osascript"
-        osa.arguments = ["-e", script]
-        try? osa.run()
-    }
+    private func ensureBrewInstalled(continuationPhase: InstallPhase) async -> Bool {
+        if brewIsInstalled() { return true }
 
-    private func emitBrewMissing(failureMessage: String) {
-        append(.error, t("Homebrew is required but not installed.",
-                         "Homebrew가 필요하지만 설치되어 있지 않습니다."))
-        append(.info, t("A Terminal window has opened with the install command.",
-                        "설치 명령이 입력된 터미널 창이 열렸습니다."))
-        append(.info, t("After Homebrew finishes installing, re-launch this installer.",
-                        "Homebrew 설치가 끝나면 이 프로그램을 다시 실행해 주세요."))
-        openTerminalForBrewInstall()
-        phase = .complete(success: false, message: failureMessage)
+        let resumePhase = phase
+        phase = .installingBrew
+        subtitle = t("Installing Homebrew…", "Homebrew 설치 중…")
+        append(.info, t("Homebrew not found — installing (you'll be asked for your password)…",
+                        "Homebrew가 설치되지 않음 — 설치를 시작합니다 (비밀번호를 묻습니다)…"))
+        do {
+            try await BrewInstaller.install { [weak self] line in
+                Task { @MainActor in self?.handleScriptLine(line) }
+            }
+            append(.ok, t("Homebrew installed.", "Homebrew 설치 완료."))
+            phase = resumePhase
+            subtitle = continuationPhase == .uninstalling
+                ? t("Uninstalling…", "제거 중…")
+                : t("Installing…", "설치 중…")
+            return true
+        } catch BrewInstaller.InstallError.authCancelled {
+            append(.error, t("Authorization cancelled — Homebrew was not installed.",
+                             "인증이 취소되었습니다 — Homebrew가 설치되지 않았습니다."))
+            phase = .complete(success: false, message: t("Homebrew install cancelled.",
+                                                         "Homebrew 설치 취소됨."))
+            return false
+        } catch {
+            append(.error, t("Homebrew install failed.", "Homebrew 설치 실패."))
+            append(.detail, error.localizedDescription)
+            phase = .complete(success: false, message: t("Homebrew install failed.",
+                                                         "Homebrew 설치 실패."))
+            return false
+        }
     }
 
     private func runInstall() async {
-        if !brewIsInstalled() {
-            emitBrewMissing(failureMessage: t("Homebrew install required.", "Homebrew 설치 필요."))
-            return
-        }
+        if !(await ensureBrewInstalled(continuationPhase: .installing)) { return }
 
         append(.info, t("Downloading installer…", "설치 프로그램 다운로드 중…"))
         let scriptPath = (("~/.adofai-umm.sh") as NSString).expandingTildeInPath
@@ -281,6 +294,11 @@ final class InstallerViewModel: ObservableObject {
         if exit != 0 {
             append(.error, t("Unity Mod Manager installation failed.",
                              "Unity Mod Manager 설치 실패."))
+            if !isGameV2 && isAppleSilicon() {
+                append(.info, t(
+                    "If Steam is set to \"Open using Rosetta\" (Steam.app → Get Info), disable it and try again.",
+                    "Steam이 \"Rosetta를 사용하여 열기\"로 설정되어 있다면 (Steam.app → 정보 가져오기), 해제 후 다시 시도하세요."))
+            }
             phase = .complete(success: false, message: t("Installation failed.", "설치 실패."))
             return
         }
@@ -315,10 +333,7 @@ final class InstallerViewModel: ObservableObject {
     }
 
     private func runUninstall() async {
-        if !brewIsInstalled() {
-            emitBrewMissing(failureMessage: t("Homebrew install required.", "Homebrew 설치 필요."))
-            return
-        }
+        if !(await ensureBrewInstalled(continuationPhase: .uninstalling)) { return }
 
         append(.info, t("Downloading uninstaller…", "제거 프로그램 다운로드 중…"))
         let scriptPath = (("~/.adofai-umm-uninstall.sh") as NSString).expandingTildeInPath

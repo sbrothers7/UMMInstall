@@ -21,6 +21,7 @@ enum InstallPhase: Equatable {
     case needsVerify
     case installed
     case picker
+    case installingBrew
     case installing
     case uninstalling
     case complete(success: Bool, message: String)

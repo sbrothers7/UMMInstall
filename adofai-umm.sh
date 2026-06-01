@@ -12,21 +12,42 @@ if [ ! -d "$APP" ]; then
     exit 1
 fi
 
-# When spawned from a .app (no login shell), /opt/homebrew/bin isn't on PATH.
-# Source shellenv from known install locations before deciding brew is missing.
-if [ -x /opt/homebrew/bin/brew ]; then
-    eval "$(/opt/homebrew/bin/brew shellenv)"
-elif [ -x /usr/local/bin/brew ]; then
-    eval "$(/usr/local/bin/brew shellenv)"
+# Use sysctl rather than `uname -m` so we get the real hardware arch even when
+# this script happens to be running under Rosetta.
+if [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = "1" ]; then
+    BREW_BIN="/opt/homebrew/bin/brew"
+else
+    BREW_BIN="/usr/local/bin/brew"
+fi
+
+# When spawned from a .app (no login shell), brew isn't on PATH. Source the
+# arch-appropriate shellenv before deciding brew is missing.
+if [ -x "$BREW_BIN" ]; then
+    eval "$($BREW_BIN shellenv)"
 fi
 
 if ! command -v brew &>/dev/null; then
     echo "Homebrew not found — installing (you may be prompted for your password)..."
-    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    if [ -x /opt/homebrew/bin/brew ]; then
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-    elif [ -x /usr/local/bin/brew ]; then
-        eval "$(/usr/local/bin/brew shellenv)"
+
+    BREW_INSTALLER="/tmp/homebrew-install.sh"
+    if ! curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh -o "$BREW_INSTALLER"; then
+        echo "error:Failed to download Homebrew installer (network?). Install manually from https://brew.sh and re-run." >&2
+        exit 1
+    fi
+
+    # set -e is on; the installer can fail (cancelled sudo, etc.) and we still
+    # want to surface a clear error rather than aborting silently.
+    set +e
+    NONINTERACTIVE=1 /bin/bash "$BREW_INSTALLER"
+    BREW_INSTALL_EXIT=$?
+    set -e
+    rm -f "$BREW_INSTALLER"
+    if [ "$BREW_INSTALL_EXIT" -ne 0 ]; then
+        echo "error:Homebrew installer exited with code $BREW_INSTALL_EXIT." >&2
+    fi
+
+    if [ -x "$BREW_BIN" ]; then
+        eval "$($BREW_BIN shellenv)"
     fi
 fi
 
@@ -34,6 +55,8 @@ if ! command -v brew &>/dev/null; then
     echo "error:Homebrew install failed. Install manually from https://brew.sh and re-run." >&2
     exit 1
 fi
+
+echo "Using brew at: $(command -v brew)"
 
 GAME_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist" 2>/dev/null)
 GAME_MAJOR="${GAME_VERSION%%.*}"

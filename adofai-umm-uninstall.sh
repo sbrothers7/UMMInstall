@@ -12,11 +12,16 @@ if [ ! -d "$APP" ]; then
     exit 1
 fi
 
-# Source brew shellenv so subsequent tool checks see Homebrew binaries.
-if [ -x /opt/homebrew/bin/brew ]; then
-    eval "$(/opt/homebrew/bin/brew shellenv)"
-elif [ -x /usr/local/bin/brew ]; then
-    eval "$(/usr/local/bin/brew shellenv)"
+# Source brew shellenv so subsequent tool checks see Homebrew binaries. Use
+# sysctl rather than `uname -m` so we get the real hardware arch even when
+# this script happens to be running under Rosetta.
+if [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = "1" ]; then
+    BREW_BIN="/opt/homebrew/bin/brew"
+else
+    BREW_BIN="/usr/local/bin/brew"
+fi
+if [ -x "$BREW_BIN" ]; then
+    eval "$($BREW_BIN shellenv)"
 fi
 
 GAME_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist" 2>/dev/null)
