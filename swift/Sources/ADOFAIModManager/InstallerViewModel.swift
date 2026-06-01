@@ -126,7 +126,7 @@ final class InstallerViewModel: ObservableObject {
             return ModRegistry.all.filter { !$0.v3Only }
         }
         let v3Excluded: Set<String> = [
-            "AdofaiTweaks", "TUFHelper", "XPerfect", "DesyncFix", "TogetherBootstrap", "PACL2"
+            "AdofaiTweaks", "TUFHelper", "DesyncFix", "TogetherBootstrap", "PACL2"
         ]
         return ModRegistry.all.filter { !v3Excluded.contains($0.id) }
     }
