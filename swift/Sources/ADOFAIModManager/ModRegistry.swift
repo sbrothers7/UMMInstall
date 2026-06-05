@@ -31,9 +31,11 @@ enum ModRegistry {
         Mod(id: "KeyboardChatterBlocker", url: "https://github.com/fangshenghan/KeyboardChatterBlocker/releases/download/0.1.0/KeyboardChatterBlocker.v0.1.0.zip",
                                           urlV2: "https://fixcdn.hyonsu.com/attachments/886661471533162526/1239183582975627304/KeyboardChatterBlocker_v0.0.9.zip"),
         Mod(id: "EnhancedEffectRemover",  url: "https://github.com/WsbiMango/EnhancedEffectRemover/releases/download/1.7.0/EnhancedEffectRemover_1.7.0.zip"),
-        Mod(id: "XPerfect",               url: "https://github.com/8100print/XPerfect/releases/latest/download/XPerfect.zip"),
+        Mod(id: "XPerfect",               url: "https://github.com/8100print/XPerfect/releases/latest/download/XPerfect.zip",
+                                          urlV2: "https://github.com/8100print/XPerfect/releases/download/1.3.1/XPerfect.zip"),
         Mod(id: "DesyncFix",              url: "https://fixcdn.hyonsu.com/attachments/886661471533162526/1045847555440910406/DesyncFix-0.0.6.zip"),
         Mod(id: "Bismuth",                url: "https://github.com/sbrothers7/Bismuth/releases/latest/download/Bismuth.zip", v3Only: true),
-        Mod(id: "KorenResourcePack",      url: "https://github.com/kkorenn/KorenResourcePack/releases/latest/download/KorenResourcePack.zip", v3Only: true)
+        Mod(id: "KorenResourcePack",      url: "https://github.com/kkorenn/KorenResourcePack/releases/latest/download/KorenResourcePack.zip", v3Only: true),
+        Mod(id: "BetterCalibration",      url: "https://jalib.jongyeol.kr/modApplicator/BetterCalibration/1.2.1.0", v3Only: true)
     ]
 }

@@ -269,40 +269,45 @@ final class InstallerViewModel: ObservableObject {
     }
 
     private func runInstall() async {
-        if !(await ensureBrewInstalled(continuationPhase: .installing)) { return }
+        if isUMMInstalled() {
+            append(.info, t("Unity Mod Manager already installed — skipping.",
+                            "Unity Mod Manager가 이미 설치됨 — 건너뜁니다."))
+        } else {
+            if !(await ensureBrewInstalled(continuationPhase: .installing)) { return }
 
-        append(.info, t("Downloading installer…", "설치 프로그램 다운로드 중…"))
-        let scriptPath = (("~/.adofai-umm.sh") as NSString).expandingTildeInPath
-        do {
-            try await Network.downloadFile(from: Self.bashInstallURL, to: scriptPath)
-        } catch {
-            append(.error, t("Failed to download installer script.",
-                             "설치 스크립트 다운로드 실패."))
-            append(.detail, error.localizedDescription)
-            phase = .complete(success: false, message: t("Installation failed.", "설치 실패."))
-            return
-        }
-
-        append(.info, t("Installing Unity Mod Manager (this may take a few minutes)…",
-                        "Unity Mod Manager 설치 중 (몇 분 소요될 수 있습니다)…"))
-        let runner = ScriptRunner()
-        let exit = await runner.run(scriptPath: scriptPath) { [weak self] line in
-            Task { @MainActor in self?.handleScriptLine(line) }
-        }
-        try? FileManager.default.removeItem(atPath: scriptPath)
-
-        if exit != 0 {
-            append(.error, t("Unity Mod Manager installation failed.",
-                             "Unity Mod Manager 설치 실패."))
-            if !isGameV2 && isAppleSilicon() {
-                append(.info, t(
-                    "If Steam is set to \"Open using Rosetta\" (Steam.app → Get Info), disable it and try again.",
-                    "Steam이 \"Rosetta를 사용하여 열기\"로 설정되어 있다면 (Steam.app → 정보 가져오기), 해제 후 다시 시도하세요."))
+            append(.info, t("Downloading installer…", "설치 프로그램 다운로드 중…"))
+            let scriptPath = (("~/.adofai-umm.sh") as NSString).expandingTildeInPath
+            do {
+                try await Network.downloadFile(from: Self.bashInstallURL, to: scriptPath)
+            } catch {
+                append(.error, t("Failed to download installer script.",
+                                 "설치 스크립트 다운로드 실패."))
+                append(.detail, error.localizedDescription)
+                phase = .complete(success: false, message: t("Installation failed.", "설치 실패."))
+                return
             }
-            phase = .complete(success: false, message: t("Installation failed.", "설치 실패."))
-            return
+
+            append(.info, t("Installing Unity Mod Manager (this may take a few minutes)…",
+                            "Unity Mod Manager 설치 중 (몇 분 소요될 수 있습니다)…"))
+            let runner = ScriptRunner()
+            let exit = await runner.run(scriptPath: scriptPath) { [weak self] line in
+                Task { @MainActor in self?.handleScriptLine(line) }
+            }
+            try? FileManager.default.removeItem(atPath: scriptPath)
+
+            if exit != 0 {
+                append(.error, t("Unity Mod Manager installation failed.",
+                                 "Unity Mod Manager 설치 실패."))
+                if !isGameV2 && isAppleSilicon() {
+                    append(.info, t(
+                        "If Steam is set to \"Open using Rosetta\" (Steam.app → Get Info), disable it and try again.",
+                        "Steam이 \"Rosetta를 사용하여 열기\"로 설정되어 있다면 (Steam.app → 정보 가져오기), 해제 후 다시 시도하세요."))
+                }
+                phase = .complete(success: false, message: t("Installation failed.", "설치 실패."))
+                return
+            }
+            append(.ok, t("Unity Mod Manager installed.", "Unity Mod Manager 설치 완료."))
         }
-        append(.ok, t("Unity Mod Manager installed.", "Unity Mod Manager 설치 완료."))
 
         try? FileManager.default.createDirectory(atPath: Self.modsPath, withIntermediateDirectories: true)
         var failed: [String] = []
