@@ -21,10 +21,10 @@ struct Mod: Identifiable, Hashable {
 
 enum ModRegistry {
     static let all: [Mod] = [
-        Mod(id: "AdofaiTweaks",           url: "https://github.com/PizzaLovers007/AdofaiTweaks/releases/latest/download/AdofaiTweaks-2.8.1.zip"),
+        Mod(id: "AdofaiTweaks",           url: "https://github.com/PizzaLovers007/AdofaiTweaks/releases/download/v2.9.1/AdofaiTweaks-2.9.1.zip"),
         Mod(id: "TUFHelper",              url: "https://github.com/coyami-ke/TUFHelper/releases/latest/download/TUFHelper.OSX.zip"),
         Mod(id: "JipperResourcePack",     url: "https://github.com/Jongye0l/JipperResourcePack/releases/latest/download/JipperResourcePack.zip"),
-        Mod(id: "PACL2",                  url: "https://fixcdn.hyonsu.com/attachments/1447565645981155389/1512590680084582593/PACL2_v2.4.3.zip"),
+        Mod(id: "PACL2",                  url: "https://fixcdn.hyonsu.com/attachments/1447565645981155389/1517202667586195546/PACL2_v2.5.200.zip"),
         Mod(id: "TogetherBootstrap",      url: "https://github.com/fangshenghan/TogetherBootstrap-Mod/releases/latest/download/TogetherBootstrap.v1.5.5.zip"),
         Mod(id: "YouTubeStream",          url: "https://bot.adofai.gg/api/mods/YoutubeStream?download=true",
                                           urlV2: "https://fixcdn.hyonsu.com/attachments/886661471533162526/1343622558813130855/YouTubeStream-1.0.3.zip"),
