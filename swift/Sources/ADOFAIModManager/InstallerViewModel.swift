@@ -179,11 +179,11 @@ final class InstallerViewModel: ObservableObject {
                   • Builds the MacTuiInstaller from kkorenn/unity-mod-manager and patches the game
                   • ⚠️ Disable "Open using Rosetta" on Steam.app first, or the install fails
 
-                MelonLoader (with UMMCompat plugin):
+                MelonLoader (recommended):
                   • Downloads MelonLoader 0.7.3 (macOS) from kkorenn/MelonLoader
+                  • Auto-installs the UMMCompat plugin (square3ang) and sets Steam launch options for you
                   • No Homebrew or .NET needed
-                  • You'll need to set Steam Launch Options to the generated setup_helper.sh
-                  • Mods go into UMMMods/ (loaded by the UMMCompat plugin)
+                  • Mods go into UMMMods/ (loaded by UMMCompat)
                 """,
                 """
                 ADOFAI \(v) 감지됨. 아래에서 로더를 선택하세요.
@@ -193,11 +193,11 @@ final class InstallerViewModel: ObservableObject {
                   • kkorenn/unity-mod-manager의 MacTuiInstaller를 빌드하여 게임을 패치
                   • ⚠️ Steam.app의 "Rosetta를 사용하여 열기"를 먼저 해제해야 합니다
 
-                MelonLoader (UMMCompat 플러그인 사용):
+                MelonLoader (권장):
                   • kkorenn/MelonLoader에서 MelonLoader 0.7.3 (macOS) 다운로드
+                  • UMMCompat 플러그인(square3ang)과 Steam 실행 옵션을 자동으로 설정합니다
                   • Homebrew나 .NET 필요 없음
-                  • Steam 실행 옵션을 생성된 setup_helper.sh로 설정해야 합니다
-                  • 모드는 UMMMods/ 폴더에 설치됩니다 (UMMCompat 플러그인이 로드)
+                  • 모드는 UMMMods/ 폴더에 설치됩니다 (UMMCompat가 로드)
                 """
             )
         } else {
@@ -252,6 +252,44 @@ final class InstallerViewModel: ObservableObject {
 
     private func append(_ level: LogLevel, _ message: String) {
         logEntries.append(LogEntry(level: level, message: message))
+    }
+
+    private func applySteamLaunchOptions() {
+        let helperPath = Self.gamePath + "/setup_helper.sh"
+        let manual = "\"\(helperPath)\" %command%"
+        switch SteamConfig.setLaunchOptions(setupHelperPath: helperPath) {
+        case .updated(let count, let steamRunning):
+            append(.ok, t("Steam launch options set (\(count) account\(count == 1 ? "" : "s")).",
+                          "Steam 실행 옵션을 설정했습니다 (\(count)개 계정)."))
+            if steamRunning {
+                append(.info, t("Fully quit and reopen Steam for the launch options to take effect.",
+                                "실행 옵션을 적용하려면 Steam을 완전히 종료한 후 다시 여세요."))
+            }
+        case .noConfigFound:
+            append(.info, t("Couldn't set Steam launch options automatically — set them manually:",
+                            "Steam 실행 옵션을 자동으로 설정하지 못했습니다 — 수동으로 설정하세요:"))
+            append(.detail, manual)
+        case .failed(let msg):
+            append(.error, t("Failed to set Steam launch options.", "Steam 실행 옵션 설정 실패."))
+            append(.detail, msg)
+            append(.info, t("Set them manually:", "수동으로 설정하세요:"))
+            append(.detail, manual)
+        }
+    }
+
+    private func clearSteamLaunchOptions() {
+        switch SteamConfig.clearLaunchOptions() {
+        case .updated(let count, let steamRunning):
+            guard count > 0 else { return }
+            append(.ok, t("Cleared Steam launch options (\(count) account\(count == 1 ? "" : "s")).",
+                          "Steam 실행 옵션을 지웠습니다 (\(count)개 계정)."))
+            if steamRunning {
+                append(.info, t("Fully quit and reopen Steam for this to take effect.",
+                                "적용하려면 Steam을 완전히 종료한 후 다시 여세요."))
+            }
+        case .noConfigFound, .failed:
+            break
+        }
     }
 
     private func brewIsInstalled() -> Bool {
@@ -345,6 +383,12 @@ final class InstallerViewModel: ObservableObject {
             append(.ok, t("\(loaderName) installed.", "\(loaderName) 설치 완료."))
         }
 
+        // For the MelonLoader flow, point Steam's launch options at the wrapper
+        // script so the loader actually injects on launch.
+        if hasMelonLoader() {
+            applySteamLaunchOptions()
+        }
+
         let modsDir = modsInstallPath
         try? FileManager.default.createDirectory(atPath: modsDir, withIntermediateDirectories: true)
         var failed: [String] = []
@@ -413,6 +457,12 @@ final class InstallerViewModel: ObservableObject {
             return
         }
         append(.ok, t("\(loaderName) uninstalled.", "\(loaderName) 제거 완료."))
+
+        // Undo the Steam launch options we set for the MelonLoader wrapper.
+        if isMelon {
+            clearSteamLaunchOptions()
+        }
+
         phase = .complete(success: true, message: t("Uninstall complete.", "제거 완료."))
     }
 
@@ -420,9 +470,20 @@ final class InstallerViewModel: ObservableObject {
     private static let ansiShort = try! NSRegularExpression(pattern: "\u{001B}[=>cm78]")
     private static let ansiCharset = try! NSRegularExpression(pattern: "\u{001B}[()][AB012]")
     private static let scriptHeader = try! NSRegularExpression(pattern: "\\^D\u{0008}+")
+    // Progress meters (curl/wget/dotnet/git) that animate with `#` and a
+    // percentage just spam the log — drop them. The spinner + subtitle already
+    // convey activity.
+    private static let progressLine = try! NSRegularExpression(
+        pattern: "^[#\\s]*\\d{1,3}(\\.\\d+)?%[#\\s]*$|^#{3,}\\s*$")
 
     private func handleScriptLine(_ raw: String) {
-        var line = raw.replacingOccurrences(of: "\r", with: "")
+        // A carriage-return-animated line (e.g. "a\rb\rc") displays only its
+        // final frame; collapse to the last non-empty segment rather than
+        // concatenating every frame into one giant line.
+        var line = raw
+        if line.contains("\r") {
+            line = line.components(separatedBy: "\r").last(where: { !$0.isEmpty }) ?? ""
+        }
         let stripping: (NSRegularExpression) -> Void = { regex in
             let range = NSRange(line.startIndex..., in: line)
             line = regex.stringByReplacingMatches(in: line, range: range, withTemplate: "")
@@ -433,6 +494,9 @@ final class InstallerViewModel: ObservableObject {
         stripping(Self.ansiCharset)
         line = line.trimmingCharacters(in: .whitespaces)
         if line.isEmpty { return }
+
+        let fullRange = NSRange(line.startIndex..., in: line)
+        if Self.progressLine.firstMatch(in: line, range: fullRange) != nil { return }
 
         if let colon = line.firstIndex(of: ":") {
             let prefix = line[..<colon].lowercased()

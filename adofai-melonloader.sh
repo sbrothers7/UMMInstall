@@ -89,7 +89,7 @@ rm -rf "$GAME_PATH/MelonLoader" \
 echo "Downloading $ARCHIVE..."
 TMP_ZIP="/tmp/adofai-melonloader.zip"
 rm -f "$TMP_ZIP"
-if ! curl -fL --progress-bar -o "$TMP_ZIP" "$URL"; then
+if ! curl -fLsS -o "$TMP_ZIP" "$URL"; then
     echo "error:Failed to download $URL" >&2
     exit 1
 fi
@@ -145,6 +145,21 @@ xattr -dr com.apple.quarantine "$GAME_PATH/MelonLoader" 2>/dev/null || true
 # MelonLoader mods go in Mods/.
 mkdir -p "$GAME_PATH/UMMMods"
 mkdir -p "$GAME_PATH/Mods"
+
+# Install UMMCompat (square3ang) — the MelonLoader plugin that loads UMM mods
+# from UMMMods/. Its zip lays down Plugins/ and UserLibs/ at the game root.
+echo "Downloading UMMCompat (square3ang)..."
+UMMCOMPAT_ZIP="/tmp/adofai-ummcompat.zip"
+rm -f "$UMMCOMPAT_ZIP"
+if curl -fLsS -o "$UMMCOMPAT_ZIP" "https://github.com/modlist-org/UMMCompat/releases/latest/download/UMMCompat.zip"; then
+    ditto -x -k "$UMMCOMPAT_ZIP" "$GAME_PATH"
+    rm -f "$UMMCOMPAT_ZIP"
+    xattr -dr com.apple.quarantine "$GAME_PATH/Plugins" 2>/dev/null || true
+    xattr -dr com.apple.quarantine "$GAME_PATH/UserLibs" 2>/dev/null || true
+    echo "ok:UMMCompat installed."
+else
+    echo "error:Failed to download UMMCompat — UMM mods in UMMMods/ won't load until it's installed."
+fi
 
 echo ""
 echo "ok:MelonLoader $MELON_VERSION installed."
