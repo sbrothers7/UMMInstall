@@ -5,9 +5,9 @@ A native macOS installer for [Unity Mod Manager](https://www.nexusmods.com/site/
 [A Dance of Fire and Ice](https://store.steampowered.com/app/977950/A_Dance_of_Fire_and_Ice/)용 [Unity Mod Manager](https://www.nexusmods.com/site/mods/21) (UMM)의 네이티브 macOS 설치기입니다. 레거시 Unity 2022 빌드 (v2.x)와 현재 Unity 6 빌드 (v3.x+) 모두를 지원하며, 모드 선택 메뉴를 포함합니다.
 
 > [!Note]
-> Currently, due to kkorenn/unity-mod-manager injecting mod assemblies early, any jongyeol mods (JipperResourcePack, PACL, BetterCalibration, etc.) are not working. This will be fixed soon.
+> Currently, any mods that depend on JALib (JipperResourcePack, PACL, BetterCalibration, etc.) are not working. This will be fixed soon.
 > 
-> 현재 kkorenn/unity-mod-manager상 문제로 jongyeol님 모드 (지퍼 리소스펙, PACL, BetterCalibration, 등)는 v3에서 사용이 불가합니다. 빠른 시일 내에 고쳐질 예정입니다.
+> 현재 JALib을 필요로 하는 모드 (지퍼 리소스펙, PACL, BetterCalibration, 등)는 v3에서 사용이 불가합니다. 빠른 시일 내에 고쳐질 예정입니다.
 
 ## Auto-installer Download | 자동설치기 다운로드
 
