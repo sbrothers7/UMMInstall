@@ -46,7 +46,9 @@ final class InstallerViewModel: ObservableObject {
                 return
             }
         } catch {
-            // Network down / rate-limited / malformed release — fall through.
+            // Network down / rate-limited / un-writable install location, etc.
+            // Fall through to normal launch rather than quitting into a loop.
+            NSLog("ADOFAI updater: skipping update — \(error.localizedDescription)")
         }
         subtitle = ""
         continueBootstrap()

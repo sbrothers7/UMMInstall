@@ -8,6 +8,23 @@ enum Updater {
         let downloadURL: URL
     }
 
+    enum UpdateError: LocalizedError {
+        case notWritable(String)
+        case appNotFoundInZip
+        case httpError(Int)
+        case unzipFailed
+
+        var errorDescription: String? {
+            switch self {
+            case .notWritable(let path):
+                return "Can't write to \(path). Move the app to a writable location (e.g. ~/Applications) and remove quarantine, then retry."
+            case .appNotFoundInZip: return ".app not found in update archive."
+            case .httpError(let code): return "HTTP \(code)"
+            case .unzipFailed: return "Failed to unzip the update."
+            }
+        }
+    }
+
     static var currentVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
     }
@@ -35,7 +52,7 @@ enum Updater {
         func parts(_ s: String) -> [Int] {
             s.trimmingCharacters(in: CharacterSet(charactersIn: "v "))
                 .split(separator: ".")
-                .map { Int($0) ?? 0 }
+                .map { Int($0.prefix { $0.isNumber }) ?? 0 }
         }
         let r = parts(remote), l = parts(local)
         let n = max(r.count, l.count)
@@ -47,8 +64,55 @@ enum Updater {
         return false
     }
 
+    // MARK: - Gatekeeper App Translocation
+    //
+    // A quarantined app launched via the Gatekeeper bypass (right-click → Open)
+    // runs from a randomized, read-only mount under
+    // /private/var/folders/.../AppTranslocation/<UUID>/d/…. Bundle.main.bundleURL
+    // then points at that read-only copy, so a naive rm/mv self-update silently
+    // fails to touch the real on-disk app and the next launch re-translocates the
+    // old version — an infinite update loop. Resolve the original path so we
+    // replace the file the user actually launches.
+
+    private typealias IsTransFn = @convention(c)
+        (CFURL, UnsafeMutablePointer<DarwinBoolean>, UnsafeMutablePointer<Unmanaged<CFError>?>?) -> DarwinBoolean
+    private typealias OrigPathFn = @convention(c)
+        (CFURL, UnsafeMutablePointer<Unmanaged<CFError>?>?) -> Unmanaged<CFURL>?
+
+    private static let securityHandle: UnsafeMutableRawPointer? =
+        dlopen("/System/Library/Frameworks/Security.framework/Security", RTLD_NOW)
+
+    /// Returns the de-translocated path for `url`, or `url` unchanged if it isn't
+    /// translocated (or the API is unavailable).
+    static func resolveOriginalPath(_ url: URL) -> URL {
+        guard let handle = securityHandle,
+              let isSym = dlsym(handle, "SecTranslocateIsTranslocatedURL"),
+              let origSym = dlsym(handle, "SecTranslocateCreateOriginalPathForURL") else {
+            return url
+        }
+        let isTranslocated = unsafeBitCast(isSym, to: IsTransFn.self)
+        var flag = DarwinBoolean(false)
+        guard isTranslocated(url as CFURL, &flag, nil).boolValue, flag.boolValue else {
+            return url
+        }
+        let originalPath = unsafeBitCast(origSym, to: OrigPathFn.self)
+        guard let unmanaged = originalPath(url as CFURL, nil) else { return url }
+        return unmanaged.takeRetainedValue() as URL
+    }
+
     static func performUpdate(downloadURL: URL) async throws {
         let fm = FileManager.default
+
+        // Resolve the real install location and confirm we can write it BEFORE
+        // downloading or quitting — so an un-updatable location falls through to
+        // normal launch instead of looping.
+        let targetURL = resolveOriginalPath(Bundle.main.bundleURL)
+        let targetPath = targetURL.path
+        let parentPath = targetURL.deletingLastPathComponent().path
+        guard fm.isWritableFile(atPath: parentPath) else {
+            throw UpdateError.notWritable(parentPath)
+        }
+
         let tmpZip = "/tmp/adofai-mm-update.zip"
         let tmpDir = "/tmp/adofai-mm-update"
         try? fm.removeItem(atPath: tmpZip)
@@ -56,8 +120,7 @@ enum Updater {
 
         let (data, response) = try await URLSession.shared.data(from: downloadURL)
         if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
-            throw NSError(domain: "Updater", code: http.statusCode,
-                          userInfo: [NSLocalizedDescriptionKey: "HTTP \(http.statusCode)"])
+            throw UpdateError.httpError(http.statusCode)
         }
         try data.write(to: URL(fileURLWithPath: tmpZip))
 
@@ -67,29 +130,33 @@ enum Updater {
         unzip.arguments = ["-q", "-o", tmpZip, "-d", tmpDir]
         try unzip.run()
         unzip.waitUntilExit()
-        if unzip.terminationStatus != 0 {
-            throw NSError(domain: "Updater", code: 10, userInfo: [NSLocalizedDescriptionKey: "unzip failed"])
-        }
+        if unzip.terminationStatus != 0 { throw UpdateError.unzipFailed }
 
         guard let newApp = try findAppBundle(in: tmpDir) else {
-            throw NSError(domain: "Updater", code: 11, userInfo: [NSLocalizedDescriptionKey: ".app not found in update zip"])
+            throw UpdateError.appNotFoundInZip
         }
 
-        let currentApp = Bundle.main.bundleURL.path
         let pid = ProcessInfo.processInfo.processIdentifier
         let helper = "/tmp/adofai-mm-update.sh"
         let script = """
         #!/bin/bash
-        set -e
-        APP="\(currentApp)"
+        LOG="/tmp/adofai-mm-update.log"
+        exec >>"$LOG" 2>&1
+        echo "=== update $(date) ==="
+        APP="\(targetPath)"
         NEW="\(newApp)"
         PID="\(pid)"
-        while kill -0 "$PID" 2>/dev/null; do sleep 0.2; done
+        echo "APP=$APP"
+        echo "NEW=$NEW"
+        # Wait for the running app to exit (cap ~20s).
+        for _ in $(seq 1 100); do kill -0 "$PID" 2>/dev/null || break; sleep 0.2; done
         sleep 0.3
-        rm -rf "$APP"
-        mv "$NEW" "$APP"
-        xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
-        open "$APP"
+        if [ ! -d "$NEW" ]; then echo "ERROR: new app missing at $NEW"; exit 1; fi
+        rm -rf "$APP" && echo "removed old" || { echo "ERROR: rm failed"; exit 1; }
+        mv "$NEW" "$APP" && echo "moved new into place" || { echo "ERROR: mv failed"; exit 1; }
+        # Clear quarantine so the swapped-in app stops translocating on next launch.
+        xattr -dr com.apple.quarantine "$APP" 2>/dev/null && echo "quarantine cleared" || echo "no quarantine attr"
+        open "$APP" && echo "relaunched" || echo "ERROR: open failed"
         rm -f "\(tmpZip)"
         rm -rf "\(tmpDir)"
         rm -f "$0"
