@@ -53,5 +53,19 @@ UNIVERSAL=1 ./build.sh --version 1.0.1  # universal arm64+x86_64 (requires full 
 - **v2.x (Unity 2022):** patches `UnityEngine.CoreModule.dll` via UMM's `Console.exe` under Mono, then on Apple Silicon strips the arm64 slice so the game runs under Rosetta (UMM's runtime is x86_64-only on this build). To fully restore the arm64 slice after uninstall, verify game files via Steam → Properties → Installed Files.
 - **v2.x (Unity 2022):** Mono에서 UMM의 `Console.exe`를 통해 `UnityEngine.CoreModule.dll`을 패치하며, Apple Silicon에서는 게임 바이너리의 arm64 슬라이스를 제거하여 Rosetta에서 실행되도록 합니다 (이 빌드의 UMM 런타임은 x86_64 전용). 제거 후 arm64 슬라이스를 완전히 복원하려면 Steam → 속성 → 설치 파일에서 게임 파일 무결성을 검증하세요.
 
-- **v3.x+ (Unity 6):** uses [kkorenn/unity-mod-manager](https://github.com/kkorenn/unity-mod-manager)'s `MacTuiInstaller`, which is built once and cached at `~/.cache/adofai-umm-installer/`.
-- **v3.x+ (Unity 6):** [kkorenn/unity-mod-manager](https://github.com/kkorenn/unity-mod-manager)의 `MacTuiInstaller`를 사용하며, 한 번만 빌드되어 `~/.cache/adofai-umm-installer/`에 캐시됩니다.
+- **v3.x+ (Unity 6):** uses [kkorenn/unity-mod-manager](https://github.com/kkorenn/unity-mod-manager)'s `MacTuiInstaller`, which is built once and cached at `~/.cache/adofai-umm-installer/`. On Apple Silicon, make sure Steam is **not** set to "Open using Rosetta" (Steam.app → Get Info) — the native installer fails if Steam runs under Rosetta.
+- **v3.x+ (Unity 6):** [kkorenn/unity-mod-manager](https://github.com/kkorenn/unity-mod-manager)의 `MacTuiInstaller`를 사용하며, 한 번만 빌드되어 `~/.cache/adofai-umm-installer/`에 캐시됩니다. Apple Silicon에서는 Steam.app이 "Rosetta를 사용하여 열기"로 설정되어 있지 않은지 확인하세요 (Steam.app → 정보 가져오기) — Steam이 Rosetta로 실행되면 네이티브 설치 프로그램이 실패합니다.
+
+## GUI Features | GUI 기능
+
+- **Auto-update on launch.** The app checks GitHub Releases on every launch and self-replaces if a newer version is available (no manual download required).
+- **실행 시 자동 업데이트.** 앱은 실행할 때마다 GitHub 릴리스를 확인하고, 새 버전이 있으면 자체적으로 교체합니다 (수동 다운로드 불필요).
+
+- **In-app Homebrew install.** If Homebrew is missing, a single native macOS auth dialog appears; the installer runs as the user (via a temporary sudoers entry) and streams its output into the same progress log used for UMM. No Terminal popup or app relaunch needed.
+- **앱 내 Homebrew 설치.** Homebrew가 없는 경우 macOS 네이티브 인증 대화상자가 한 번만 표시됩니다. 설치 프로그램은 사용자 권한으로 실행되어 (임시 sudoers 엔트리 사용) 출력이 UMM과 동일한 진행 로그에 표시됩니다. 터미널 팝업이나 앱 재실행이 필요하지 않습니다.
+
+- **MelonLoader detection.** If [MelonLoader](https://melonwiki.xyz/) is installed (`MelonLoader.Bootstrap.dylib` at the game root), the app skips installing UMM and routes mods into `UMMMods/` instead of `Mods/` — designed for use with the UMMCompat plugin.
+- **MelonLoader 감지.** [MelonLoader](https://melonwiki.xyz/)가 설치되어 있으면 (게임 루트에 `MelonLoader.Bootstrap.dylib`) UMM 설치를 건너뛰고 모드를 `Mods/` 대신 `UMMMods/`에 설치합니다 — UMMCompat 플러그인과 함께 사용하도록 설계되었습니다.
+
+- **Bundled mod picker.** Selects compatible releases per game version automatically; mods without a v3-compatible release are hidden on v3.x+, and mods that dropped v2 support fall back to pinned older builds on v2.x.
+- **내장 모드 선택기.** 게임 버전에 맞는 호환 릴리스를 자동으로 선택합니다. v3 호환 릴리스가 없는 모드는 v3.x+에서 숨겨지며, v2 지원이 중단된 모드는 v2.x에서 고정된 이전 빌드로 폴백됩니다.

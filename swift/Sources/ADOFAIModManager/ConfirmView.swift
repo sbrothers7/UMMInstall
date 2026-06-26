@@ -17,11 +17,19 @@ struct ConfirmView: View {
             }
             Spacer(minLength: 0)
             HStack {
-                Spacer()
                 Button(vm.t("Cancel", "취소")) { vm.cancelInstall() }
-                Button(vm.t("Proceed", "계속")) { vm.proceedFromConfirm() }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
+                Spacer()
+                if vm.isGameV2 {
+                    Button(vm.t("Proceed", "계속")) { vm.proceedFromConfirm(with: .umm) }
+                        .keyboardShortcut(.defaultAction)
+                        .buttonStyle(.borderedProminent)
+                } else {
+                    Button(vm.t("Native UMM", "네이티브 UMM")) { vm.proceedFromConfirm(with: .umm) }
+                        .buttonStyle(.bordered)
+                    Button(vm.t("MelonLoader", "MelonLoader")) { vm.proceedFromConfirm(with: .melonLoader) }
+                        .keyboardShortcut(.defaultAction)
+                        .buttonStyle(.borderedProminent)
+                }
             }
         }
         .padding(24)

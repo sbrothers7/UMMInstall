@@ -9,6 +9,11 @@ enum Language: String, CaseIterable {
     case ko
 }
 
+enum LoaderType: String, CaseIterable {
+    case umm
+    case melonLoader
+}
+
 struct LogEntry: Identifiable, Equatable {
     let id = UUID()
     let level: LogLevel
