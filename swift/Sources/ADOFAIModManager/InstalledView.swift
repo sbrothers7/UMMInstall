@@ -3,9 +3,11 @@ import SwiftUI
 struct InstalledView: View {
     @EnvironmentObject var vm: InstallerViewModel
     @State private var confirmingUninstall = false
+    @State private var confirmingMigration = false
 
     var body: some View {
         let isMelon = vm.hasMelonLoader()
+        let canMigrate = !isMelon && vm.isUMMInstalled()
 
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
@@ -28,19 +30,38 @@ struct InstalledView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+
+            if canMigrate {
+                migrationBanner
+            }
+
             Spacer(minLength: 8)
 
             VStack(spacing: 10) {
-                Button {
-                    vm.proceedFromInstalled()
-                } label: {
-                    Label(vm.t("Install Mods", "모드 설치"), systemImage: "square.and.arrow.down")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 6)
+                if canMigrate {
+                    Button {
+                        confirmingMigration = true
+                    } label: {
+                        Label(vm.t("Migrate to MelonLoader", "MelonLoader로 마이그레이션"),
+                              systemImage: "arrow.triangle.2.circlepath")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 6)
+                    }
+                    .controlSize(.large)
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
                 }
-                .controlSize(.large)
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
+
+                // When migration is offered it's the prominent default action,
+                // so Install Mods is demoted to a plain bordered button.
+                if canMigrate {
+                    installModsButton
+                        .buttonStyle(.bordered)
+                } else {
+                    installModsButton
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.defaultAction)
+                }
 
                 Button {
                     confirmingUninstall = true
@@ -69,6 +90,41 @@ struct InstalledView: View {
         } message: {
             Text(uninstallAlertMessage(isMelon: isMelon))
         }
+        .alert(vm.t("Migrate to MelonLoader?", "MelonLoader로 마이그레이션하시겠습니까?"),
+               isPresented: $confirmingMigration) {
+            Button(vm.t("Cancel", "취소"), role: .cancel) {}
+            Button(vm.t("Migrate", "마이그레이션")) { vm.startMigration() }
+        } message: {
+            Text(vm.t(
+                "This uninstalls Unity Mod Manager and installs MelonLoader + UMMCompat, then offers to move your UMM mods to UMMMods/.",
+                "Unity Mod Manager를 제거하고 MelonLoader + UMMCompat를 설치한 후, UMM 모드를 UMMMods/로 옮기도록 안내합니다."))
+        }
+    }
+
+    private var installModsButton: some View {
+        Button {
+            vm.proceedFromInstalled()
+        } label: {
+            Label(vm.t("Install Mods", "모드 설치"), systemImage: "square.and.arrow.down")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 6)
+        }
+        .controlSize(.large)
+    }
+
+    private var migrationBanner: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "sparkles")
+                .foregroundColor(.accentColor)
+            Text(vm.t("MelonLoader is now recommended over Unity Mod Manager. It's more compatible with the latest ADOFAI and needs no Homebrew or .NET.",
+                      "이제 Unity Mod Manager보다 MelonLoader를 권장합니다. 최신 ADOFAI와 호환성이 더 좋고 Homebrew나 .NET이 필요 없습니다."))
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.10)))
     }
 
     private func loaderTitle(isMelon: Bool) -> String {

@@ -82,6 +82,8 @@ fi
 # 6. Publish (or update) the GitHub release with the asset.
 # ---------------------------------------------------------------------------
 NOTES="### Installation | 설치 방법
+[![Downloads](https://img.shields.io/github/downloads/sbrothers7/UMMInstall/total?style=flat-square&logo=github&label=Downloads&color=2ea44f)]()
+
 Unzip the Installer.zip, then open the resulting app
 Installer.zip을 압축 해제 후 설치기 앱을 실행해주세요
 

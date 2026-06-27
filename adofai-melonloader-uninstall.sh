@@ -35,4 +35,3 @@ done
 echo ""
 echo "ok:MelonLoader uninstalled."
 echo ""
-echo "info:Remove the Steam Launch Options entry (Properties → Launch Options) if you set one."

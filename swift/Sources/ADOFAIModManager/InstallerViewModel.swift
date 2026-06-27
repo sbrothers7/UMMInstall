@@ -10,6 +10,7 @@ final class InstallerViewModel: ObservableObject {
     @Published var subtitle: String = ""
     @Published var selectedMods: Set<String> = []
     @Published var selectedLoader: LoaderType = .umm
+    @Published var migratableMods: [String] = []
     @Published var language: Language =
         Language(rawValue: UserDefaults.standard.string(forKey: "appLanguage") ?? "en") ?? .en {
         didSet { UserDefaults.standard.set(language.rawValue, forKey: "appLanguage") }
@@ -248,6 +249,13 @@ final class InstallerViewModel: ObservableObject {
         Task { await runUninstall() }
     }
 
+    func startMigration() {
+        selectedLoader = .melonLoader
+        subtitle = t("Migrating to MelonLoader…", "MelonLoader로 마이그레이션 중…")
+        phase = .migrating
+        Task { await runMigration() }
+    }
+
     func proceedFromInstalled() { phase = .picker }
 
     private func append(_ level: LogLevel, _ message: String) {
@@ -464,6 +472,106 @@ final class InstallerViewModel: ObservableObject {
         }
 
         phase = .complete(success: true, message: t("Uninstall complete.", "제거 완료."))
+    }
+
+    // MARK: - UMM → MelonLoader migration
+
+    private func downloadAndRunScript(url: String, file: String) async -> Int32 {
+        let scriptPath = (file as NSString).expandingTildeInPath
+        do {
+            try await Network.downloadFile(from: url, to: scriptPath)
+        } catch {
+            append(.error, t("Failed to download script.", "스크립트 다운로드 실패."))
+            append(.detail, error.localizedDescription)
+            return -1
+        }
+        let runner = ScriptRunner()
+        let exit = await runner.run(scriptPath: scriptPath) { [weak self] line in
+            Task { @MainActor in self?.handleScriptLine(line) }
+        }
+        try? FileManager.default.removeItem(atPath: scriptPath)
+        return exit
+    }
+
+    private func runMigration() async {
+        // 1. Uninstall UMM (its uninstaller needs brew tools).
+        if !(await ensureBrewInstalled(continuationPhase: .migrating)) { return }
+        append(.info, t("Removing Unity Mod Manager…", "Unity Mod Manager 제거 중…"))
+        let ummExit = await downloadAndRunScript(url: Self.bashUninstallURL, file: "~/.adofai-umm-uninstall.sh")
+        if ummExit != 0 {
+            append(.error, t("Failed to remove Unity Mod Manager.", "Unity Mod Manager 제거 실패."))
+            phase = .complete(success: false, message: t("Migration failed.", "마이그레이션 실패."))
+            return
+        }
+        append(.ok, t("Unity Mod Manager removed.", "Unity Mod Manager 제거 완료."))
+
+        // 2. Install MelonLoader (+ UMMCompat + launch options).
+        subtitle = t("Installing MelonLoader…", "MelonLoader 설치 중…")
+        append(.info, t("Installing MelonLoader…", "MelonLoader 설치 중…"))
+        let melonExit = await downloadAndRunScript(url: Self.melonInstallURL, file: "~/.adofai-melonloader.sh")
+        if melonExit != 0 {
+            append(.error, t("MelonLoader installation failed.", "MelonLoader 설치 실패."))
+            phase = .complete(success: false, message: t("Migration failed.", "마이그레이션 실패."))
+            return
+        }
+        append(.ok, t("MelonLoader installed.", "MelonLoader 설치 완료."))
+        if hasMelonLoader() { applySteamLaunchOptions() }
+
+        // 3. If old UMM mods remain in Mods/, prompt to move them to UMMMods/.
+        let found = findUMMModsInModsFolder()
+        if found.isEmpty {
+            phase = .complete(success: true, message: t("Migration complete.", "마이그레이션 완료."))
+        } else {
+            migratableMods = found
+            subtitle = t("Migration almost done…", "마이그레이션 거의 완료…")
+            phase = .confirmModMove
+        }
+    }
+
+    /// UMM mods are folders under Mods/ that contain an info.json.
+    private func findUMMModsInModsFolder() -> [String] {
+        let fm = FileManager.default
+        let modsDir = Self.ummModsPath
+        guard let entries = try? fm.contentsOfDirectory(atPath: modsDir) else { return [] }
+        return entries.filter { name in
+            if name.hasPrefix(".") { return false }
+            let full = modsDir + "/" + name
+            var isDir: ObjCBool = false
+            guard fm.fileExists(atPath: full, isDirectory: &isDir), isDir.boolValue else { return false }
+            let contents = (try? fm.contentsOfDirectory(atPath: full)) ?? []
+            return contents.contains { $0.lowercased() == "info.json" }
+        }.sorted()
+    }
+
+    func moveMigratableMods() {
+        let fm = FileManager.default
+        let src = Self.ummModsPath
+        let dst = Self.melonModsPath
+        try? fm.createDirectory(atPath: dst, withIntermediateDirectories: true)
+        var moved = 0
+        for name in migratableMods {
+            let from = src + "/" + name
+            let to = dst + "/" + name
+            do {
+                if fm.fileExists(atPath: to) { try fm.removeItem(atPath: to) }
+                try fm.moveItem(atPath: from, toPath: to)
+                moved += 1
+            } catch {
+                append(.error, t("Failed to move \(name).", "\(name) 이동 실패."))
+                append(.detail, error.localizedDescription)
+            }
+        }
+        append(.ok, t("Moved \(moved) mod\(moved == 1 ? "" : "s") to UMMMods/.",
+                      "\(moved)개 모드를 UMMMods/로 이동했습니다."))
+        migratableMods = []
+        phase = .complete(success: true, message: t("Migration complete.", "마이그레이션 완료."))
+    }
+
+    func skipMigratableMods() {
+        migratableMods = []
+        phase = .complete(success: true,
+                          message: t("Migration complete. UMM mods left in Mods/ — move them to UMMMods/ to use them.",
+                                     "마이그레이션 완료. UMM 모드는 Mods/에 남아 있습니다 — 사용하려면 UMMMods/로 옮기세요."))
     }
 
     private static let ansiCSI = try! NSRegularExpression(pattern: "\u{001B}\\[[\\d;?]*[a-zA-Z]")

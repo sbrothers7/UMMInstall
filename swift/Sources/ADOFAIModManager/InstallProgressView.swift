@@ -49,13 +49,27 @@ struct InstallProgressView: View {
             .background(Color.black.opacity(0.18))
             .overlay(Rectangle().frame(height: 1).foregroundColor(.white.opacity(0.06)), alignment: .top)
         }
+        .alert(vm.t("Move UMM mods?", "UMM 모드를 옮기시겠습니까?"),
+               isPresented: Binding(
+                get: { vm.phase == .confirmModMove },
+                set: { _ in })) {
+            Button(vm.t("Move to UMMMods/", "UMMMods/로 이동")) { vm.moveMigratableMods() }
+            Button(vm.t("Keep in Mods/", "Mods/에 유지"), role: .cancel) { vm.skipMigratableMods() }
+        } message: {
+            Text(vm.t(
+                "Found \(vm.migratableMods.count) UMM mod\(vm.migratableMods.count == 1 ? "" : "s") in Mods/. Move them to UMMMods/ so UMMCompat loads them?",
+                "Mods/에서 \(vm.migratableMods.count)개의 UMM 모드를 찾았습니다. UMMCompat가 로드하도록 UMMMods/로 옮길까요?"))
+        }
     }
 
     private var progressSubtitle: String {
         switch vm.phase {
-        case .installingBrew, .installing, .uninstalling: return vm.subtitle
-        case .complete(_, let msg):                       return msg
-        default:                                          return ""
+        case .installingBrew, .installing, .uninstalling, .migrating, .confirmModMove:
+            return vm.subtitle
+        case .complete(_, let msg):
+            return msg
+        default:
+            return ""
         }
     }
 

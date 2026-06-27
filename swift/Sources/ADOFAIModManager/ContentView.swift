@@ -16,7 +16,7 @@ struct ContentView: View {
                 InstalledView()
             case .picker:
                 ModPickerView()
-            case .installingBrew, .installing, .uninstalling, .complete:
+            case .installingBrew, .installing, .uninstalling, .migrating, .confirmModMove, .complete:
                 InstallProgressView()
             }
         }

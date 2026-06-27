@@ -164,6 +164,3 @@ fi
 echo ""
 echo "ok:MelonLoader $MELON_VERSION installed."
 echo ""
-echo "info:IMPORTANT — set the game's Steam Launch Options to:"
-echo "info:  \"$GAME_PATH/setup_helper.sh\" %command%"
-echo "info:(Steam → Library → A Dance of Fire and Ice → Properties → Launch Options)"

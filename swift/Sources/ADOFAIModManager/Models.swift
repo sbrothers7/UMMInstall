@@ -29,5 +29,7 @@ enum InstallPhase: Equatable {
     case installingBrew
     case installing
     case uninstalling
+    case migrating
+    case confirmModMove
     case complete(success: Bool, message: String)
 }
