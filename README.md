@@ -11,7 +11,7 @@ A native macOS installer for [Unity Mod Manager](https://www.nexusmods.com/site/
 
 ## Auto-installer Download | 자동설치기 다운로드
 
-https://github.com/sbrothers7/UMMInstall/releases/tag/v1.0.0
+https://github.com/sbrothers7/UMMInstall/releases/latest
 
 ## Requirements | 요구 사항
 
