@@ -11,6 +11,8 @@ final class InstallerViewModel: ObservableObject {
     @Published var selectedMods: Set<String> = []
     @Published var selectedLoader: LoaderType = .umm
     @Published var migratableMods: [String] = []
+    @Published var mods: [Mod] = []
+    @Published var modsError: String?
     @Published var language: Language =
         Language(rawValue: UserDefaults.standard.string(forKey: "appLanguage") ?? "en") ?? .en {
         didSet { UserDefaults.standard.set(language.rawValue, forKey: "appLanguage") }
@@ -51,8 +53,26 @@ final class InstallerViewModel: ObservableObject {
             // Fall through to normal launch rather than quitting into a loop.
             NSLog("ADOFAI updater: skipping update — \(error.localizedDescription)")
         }
+        // Pull the mod list from the repo so the picker reflects registry edits
+        // without an app rebuild.
+        await loadMods()
         subtitle = ""
         continueBootstrap()
+    }
+
+    func loadMods() async {
+        do {
+            mods = try await ModRegistry.fetch()
+            modsError = nil
+        } catch {
+            mods = []
+            modsError = error.localizedDescription
+            NSLog("ADOFAI: failed to load mod list — \(error.localizedDescription)")
+        }
+    }
+
+    func reloadMods() {
+        Task { await loadMods() }
     }
 
     private func continueBootstrap() {
@@ -136,15 +156,19 @@ final class InstallerViewModel: ObservableObject {
 
     var isGameV2: Bool { gameVersion?.hasPrefix("2.") == true }
 
-    // TEMP: these mods have no v3.1.0-compatible release yet (DesyncFix is now baked into the game). Hide them on v3.x+ until upstream ships updates.
+    /// Mods shown in the picker for the detected game version. JALib-dependent
+    /// mods are hidden (and surfaced via the banner) while JALib is broken.
     var visibleMods: [Mod] {
-        if isGameV2 {
-            return ModRegistry.all.filter { !$0.v3Only }
+        mods.filter { mod in
+            guard !mod.jalib else { return false }
+            return isGameV2 ? mod.v2 : mod.v3
         }
-        let v3Excluded: Set<String> = [
-            "DesyncFix", "TogetherBootstrap"
-        ]
-        return ModRegistry.all.filter { !v3Excluded.contains($0.id) }
+    }
+
+    /// JALib-dependent mods that would otherwise be available for this game
+    /// version — listed in the picker's "unavailable" banner.
+    var unavailableJALibMods: [Mod] {
+        mods.filter { $0.jalib && (isGameV2 ? $0.v2 : $0.v3) }
     }
 
     var confirmationText: String {
@@ -400,10 +424,10 @@ final class InstallerViewModel: ObservableObject {
         let modsDir = modsInstallPath
         try? FileManager.default.createDirectory(atPath: modsDir, withIntermediateDirectories: true)
         var failed: [String] = []
-        let mods = ModRegistry.all.filter { selectedMods.contains($0.id) }
-        for (idx, mod) in mods.enumerated() {
+        let selected = mods.filter { selectedMods.contains($0.id) }
+        for (idx, mod) in selected.enumerated() {
             let i = idx + 1
-            let n = mods.count
+            let n = selected.count
             append(.info, t("Downloading \(mod.id) (\(i)/\(n))…",
                             "\(mod.id) 다운로드 중 (\(i)/\(n))…"))
             do {

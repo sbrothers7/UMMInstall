@@ -69,3 +69,9 @@ UNIVERSAL=1 ./build.sh --version 1.0.1  # universal arm64+x86_64 (requires full 
 
 - **Bundled mod picker.** Selects compatible releases per game version automatically; mods without a v3-compatible release are hidden on v3.x+, and mods that dropped v2 support fall back to pinned older builds on v2.x.
 - **내장 모드 선택기.** 게임 버전에 맞는 호환 릴리스를 자동으로 선택합니다. v3 호환 릴리스가 없는 모드는 v3.x+에서 숨겨지며, v2 지원이 중단된 모드는 v2.x에서 고정된 이전 빌드로 폴백됩니다.
+
+## Updating the Mod List | 모드 목록 업데이트
+
+The mod picker is driven by [mods.json](mods.json), fetched from this repo at launch — edit and push it to change the available mods **without rebuilding the app**. Each entry: `id`, `url`, optional `urlV2` (v2.x download), and flags `v2`/`v3` (default `true`; availability per game build) and `jalib` (default `false`; hidden with a banner while JALib-dependent mods are broken).
+
+모드 선택기는 실행 시 이 저장소에서 가져오는 [mods.json](mods.json)으로 동작합니다 — 파일을 수정하고 푸시하면 **앱을 다시 빌드하지 않고** 모드 목록을 변경할 수 있습니다. 각 항목: `id`, `url`, 선택적 `urlV2` (v2.x 다운로드), 그리고 플래그 `v2`/`v3` (기본값 `true`; 게임 빌드별 제공 여부)와 `jalib` (기본값 `false`; JALib 의존 모드가 작동하지 않는 동안 배너와 함께 숨김).
