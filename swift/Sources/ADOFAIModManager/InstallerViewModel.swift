@@ -422,6 +422,7 @@ final class InstallerViewModel: ObservableObject {
         }
 
         let modsDir = modsInstallPath
+        let isMelon = hasMelonLoader()
         try? FileManager.default.createDirectory(atPath: modsDir, withIntermediateDirectories: true)
         var failed: [String] = []
         let selected = mods.filter { selectedMods.contains($0.id) }
@@ -431,7 +432,9 @@ final class InstallerViewModel: ObservableObject {
             append(.info, t("Downloading \(mod.id) (\(i)/\(n))…",
                             "\(mod.id) 다운로드 중 (\(i)/\(n))…"))
             do {
-                try await ModDownloader.install(mod: mod, isGameV2: isGameV2, into: modsDir)
+                try await ModDownloader.install(mod: mod, isGameV2: isGameV2,
+                                                isMelonLoader: isMelon,
+                                                gameRoot: Self.gamePath, into: modsDir)
                 append(.ok, t("\(mod.id) installed.", "\(mod.id) 설치 완료."))
             } catch {
                 append(.error, t("\(mod.id) failed to install.", "\(mod.id) 설치 실패."))

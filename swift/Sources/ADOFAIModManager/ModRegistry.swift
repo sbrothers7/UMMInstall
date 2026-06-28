@@ -3,19 +3,23 @@ import Foundation
 struct Mod: Identifiable, Hashable, Codable {
     let id: String
     let url: String
-    let urlV2: String?
-    let v2: Bool        // available on the v2.x (Unity 2022) build
-    let v3: Bool        // available on the v3.x+ (Unity 6) build
-    let jalib: Bool     // depends on JALib (currently broken — hidden, banner shown)
+    let urlV2: String?      // download for the v2.x build (falls back to url)
+    let urlMelon: String?   // download to use when the loader is MelonLoader
+    let v2: Bool            // available on the v2.x (Unity 2022) build
+    let v3: Bool            // available on the v3.x+ (Unity 6) build
+    let jalib: Bool         // depends on JALib (currently broken — hidden, banner shown)
+    let install: String?    // special install handler key (e.g. "quartz"); nil = default
 
-    init(id: String, url: String, urlV2: String? = nil,
-         v2: Bool = true, v3: Bool = true, jalib: Bool = false) {
+    init(id: String, url: String, urlV2: String? = nil, urlMelon: String? = nil,
+         v2: Bool = true, v3: Bool = true, jalib: Bool = false, install: String? = nil) {
         self.id = id
         self.url = url
         self.urlV2 = urlV2
+        self.urlMelon = urlMelon
         self.v2 = v2
         self.v3 = v3
         self.jalib = jalib
+        self.install = install
     }
 
     init(from decoder: Decoder) throws {
@@ -23,12 +27,15 @@ struct Mod: Identifiable, Hashable, Codable {
         id = try c.decode(String.self, forKey: .id)
         url = try c.decode(String.self, forKey: .url)
         urlV2 = try c.decodeIfPresent(String.self, forKey: .urlV2)
+        urlMelon = try c.decodeIfPresent(String.self, forKey: .urlMelon)
         v2 = try c.decodeIfPresent(Bool.self, forKey: .v2) ?? true
         v3 = try c.decodeIfPresent(Bool.self, forKey: .v3) ?? true
         jalib = try c.decodeIfPresent(Bool.self, forKey: .jalib) ?? false
+        install = try c.decodeIfPresent(String.self, forKey: .install)
     }
 
-    func resolvedURL(isGameV2: Bool) -> String {
+    func resolvedURL(isGameV2: Bool, isMelonLoader: Bool) -> String {
+        if isMelonLoader, let melon = urlMelon { return melon }
         if isGameV2, let v2 = urlV2 { return v2 }
         return url
     }

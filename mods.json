@@ -15,8 +15,10 @@
     },
     {
       "id": "Quartz",
-      "url": "https://github.com/kkorenn/Quartz/releases/download/v2.0.0-alpha-41/QuartzUmm.zip",
-      "v2": false
+      "url": "https://github.com/kkorenn/Quartz/releases/download/v2.0.0-alpha-43/QuartzUmm.zip",
+      "urlMelon": "https://github.com/kkorenn/Quartz/releases/download/v2.0.0-alpha-43/Quartz.zip",
+      "v2": false,
+      "install": "quartz"
     },
     {
       "id": "JipperResourcePack",
