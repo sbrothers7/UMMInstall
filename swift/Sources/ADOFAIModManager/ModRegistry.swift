@@ -1,16 +1,31 @@
 import Foundation
 
-struct Mod: Identifiable, Hashable {
+struct Mod: Identifiable, Hashable, Codable {
     let id: String
     let url: String
     let urlV2: String?
-    let v3Only: Bool
+    let v2: Bool        // available on the v2.x (Unity 2022) build
+    let v3: Bool        // available on the v3.x+ (Unity 6) build
+    let jalib: Bool     // depends on JALib (currently broken — hidden, banner shown)
 
-    init(id: String, url: String, urlV2: String? = nil, v3Only: Bool = false) {
+    init(id: String, url: String, urlV2: String? = nil,
+         v2: Bool = true, v3: Bool = true, jalib: Bool = false) {
         self.id = id
         self.url = url
         self.urlV2 = urlV2
-        self.v3Only = v3Only
+        self.v2 = v2
+        self.v3 = v3
+        self.jalib = jalib
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        url = try c.decode(String.self, forKey: .url)
+        urlV2 = try c.decodeIfPresent(String.self, forKey: .urlV2)
+        v2 = try c.decodeIfPresent(Bool.self, forKey: .v2) ?? true
+        v3 = try c.decodeIfPresent(Bool.self, forKey: .v3) ?? true
+        jalib = try c.decodeIfPresent(Bool.self, forKey: .jalib) ?? false
     }
 
     func resolvedURL(isGameV2: Bool) -> String {
@@ -19,24 +34,42 @@ struct Mod: Identifiable, Hashable {
     }
 }
 
+private struct ModList: Codable {
+    let mods: [Mod]
+}
+
+enum ModRegistryError: LocalizedError {
+    case badURL
+    case http(Int)
+    case empty
+
+    var errorDescription: String? {
+        switch self {
+        case .badURL:        return "Invalid mod registry URL."
+        case .http(let c):   return "Couldn't fetch the mod list (HTTP \(c))."
+        case .empty:         return "The mod list was empty."
+        }
+    }
+}
+
 enum ModRegistry {
-    static let all: [Mod] = [
-        Mod(id: "AdofaiTweaks",           url: "https://github.com/PizzaLovers007/AdofaiTweaks/releases/download/v2.9.1/AdofaiTweaks-2.9.1.zip"),
-        Mod(id: "TUFHelper",              url: "https://github.com/coyami-ke/TUFHelper/releases/latest/download/TUFHelper.OSX.zip"),
-        Mod(id: "JipperResourcePack",     url: "https://github.com/Jongye0l/JipperResourcePack/releases/latest/download/JipperResourcePack.zip"),
-        Mod(id: "PACL2",                  url: "https://fixcdn.hyonsu.com/attachments/1447565645981155389/1517202667586195546/PACL2_v2.5.200.zip"),
-        Mod(id: "TogetherBootstrap",      url: "https://github.com/fangshenghan/TogetherBootstrap-Mod/releases/latest/download/TogetherBootstrap.v1.5.5.zip"),
-        Mod(id: "YouTubeStream",          url: "https://bot.adofai.gg/api/mods/YoutubeStream?download=true",
-                                          urlV2: "https://fixcdn.hyonsu.com/attachments/886661471533162526/1343622558813130855/YouTubeStream-1.0.3.zip"),
-        Mod(id: "KeyboardChatterBlocker", url: "https://github.com/fangshenghan/KeyboardChatterBlocker/releases/download/0.1.0/KeyboardChatterBlocker.v0.1.0.zip",
-                                          urlV2: "https://fixcdn.hyonsu.com/attachments/886661471533162526/1239183582975627304/KeyboardChatterBlocker_v0.0.9.zip"),
-        Mod(id: "KeyLimiter",             url: "https://fixcdn.hyonsu.com/attachments/886661471533162526/1512516444007698512/KeyLimiter.zip"),
-        Mod(id: "EnhancedEffectRemover",  url: "https://github.com/WsbiMango/EnhancedEffectRemover/releases/download/1.7.0/EnhancedEffectRemover_1.7.0.zip"),
-        Mod(id: "XPerfect",               url: "https://github.com/8100print/XPerfect/releases/latest/download/XPerfect.zip",
-                                          urlV2: "https://github.com/8100print/XPerfect/releases/download/1.3.1/XPerfect.zip"),
-        Mod(id: "DesyncFix",              url: "https://fixcdn.hyonsu.com/attachments/886661471533162526/1045847555440910406/DesyncFix-0.0.6.zip"),
-        Mod(id: "Bismuth",                url: "https://github.com/sbrothers7/Bismuth/releases/latest/download/Bismuth.zip", v3Only: true),
-        Mod(id: "KorenResourcePack",      url: "https://github.com/kkorenn/KorenResourcePack/releases/latest/download/KorenResourcePack.zip", v3Only: true),
-        Mod(id: "BetterCalibration",      url: "https://jalib.jongyeol.kr/modApplicator/BetterCalibration/1.2.1.0", v3Only: true)
-    ]
+    /// Source of truth at runtime — edit mods.json in the repo to change the mod
+    /// list without rebuilding the app.
+    static let registryURL = "https://raw.githubusercontent.com/sbrothers7/UMMInstall/main/mods.json"
+
+    /// Fetches the mod list from the repo. Throws on any network/decode failure
+    /// — the caller surfaces the error rather than masking it with stale data.
+    static func fetch() async throws -> [Mod] {
+        guard let url = URL(string: registryURL) else { throw ModRegistryError.badURL }
+        var req = URLRequest(url: url)
+        req.timeoutInterval = 8
+        req.cachePolicy = .reloadIgnoringLocalCacheData
+        let (data, response) = try await URLSession.shared.data(for: req)
+        if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
+            throw ModRegistryError.http(http.statusCode)
+        }
+        let list = try JSONDecoder().decode(ModList.self, from: data)
+        if list.mods.isEmpty { throw ModRegistryError.empty }
+        return list.mods
+    }
 }

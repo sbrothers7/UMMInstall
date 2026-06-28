@@ -91,7 +91,9 @@ Installer.zip을 압축 해제 후 설치기 앱을 실행해주세요
 > When opening the .app, open via \`Right Click > Open\`
 > .app 파일을 열 때 \`우클릭 > 열기\`로 열어주세요
 >
-> If it still doesn't open, go to \`System Settings > Privacy & Security > Open Anyway\`"
+> If it still doesn't open, go to \`System Settings > Privacy & Security > Open Anyway\`
+> 그래도 안 열린다면 \`시스템 설정 > 개인정보 보호 및 보안 > 그래도 열기\` 버튼을 눌러주세요.
+"
 
 if gh release view "$TAG" >/dev/null 2>&1; then
     echo "Release $TAG exists — updating asset..."
