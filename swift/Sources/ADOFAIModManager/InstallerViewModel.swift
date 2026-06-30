@@ -24,10 +24,10 @@ final class InstallerViewModel: ObservableObject {
     static let melonModsPath = gamePath + "/UMMMods"
     static let ummMarkerPath = gameAppPath + "/Contents/Resources/Data/Managed/UnityModManager/UnityModManager.dll"
     static let melonLoaderMarkerPath = gamePath + "/MelonLoader.Bootstrap.dylib"
-    static let bashInstallURL = "https://raw.githubusercontent.com/sbrothers7/UMMInstall/main/adofai-umm.sh"
-    static let bashUninstallURL = "https://raw.githubusercontent.com/sbrothers7/UMMInstall/main/adofai-umm-uninstall.sh"
-    static let melonInstallURL = "https://raw.githubusercontent.com/sbrothers7/UMMInstall/main/adofai-melonloader.sh"
-    static let melonUninstallURL = "https://raw.githubusercontent.com/sbrothers7/UMMInstall/main/adofai-melonloader-uninstall.sh"
+    static let bashInstallURL = "https://raw.githubusercontent.com/sbrothers7/UMMInstall/main/macos/adofai-umm.sh"
+    static let bashUninstallURL = "https://raw.githubusercontent.com/sbrothers7/UMMInstall/main/macos/adofai-umm-uninstall.sh"
+    static let melonInstallURL = "https://raw.githubusercontent.com/sbrothers7/UMMInstall/main/macos/adofai-melonloader.sh"
+    static let melonUninstallURL = "https://raw.githubusercontent.com/sbrothers7/UMMInstall/main/macos/adofai-melonloader-uninstall.sh"
 
     func t(_ en: String, _ ko: String) -> String { language == .ko ? ko : en }
 

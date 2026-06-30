@@ -1,13 +1,29 @@
 # 추가 정보
 
-## 터미널
+## macOS — 터미널
 
 ```bash
+# macos/ 폴더에서 실행:
 ./adofai-umm.sh             # 설치
 ./adofai-umm-uninstall.sh   # 제거
 ```
 
 설치 후, Steam을 통해 게임을 실행하고 UMM 메뉴를 열려면 **Ctrl+F10**을 누르세요.
+
+## Windows — PowerShell
+
+MelonLoader와 UMMCompat 플러그인을 설치합니다 (UMM 모드는 UMMCompat로 로드됨). Windows에서는 MelonLoader가 프록시 `version.dll`을 통해 주입되므로 실행 래퍼나 추가 의존성 설정이 필요 없습니다.
+
+```powershell
+# PowerShell에서 windows/ 폴더 안에서 실행:
+.\adofai-melonloader.ps1            # 설치
+.\adofai-melonloader-uninstall.ps1  # 제거
+```
+
+스크립트는 레지스트리와 `libraryfolders.vdf`를 통해 모든 Steam 라이브러리에서 게임을 자동으로 찾습니다. MelonLoader 모드는 `Mods/`에, UMM 모드는 `UMMMods/`에 설치됩니다. Steam으로 실행 후 **Ctrl+F10**을 누르세요.
+
+> [!Note]
+> 크로스 플랫폼 지원은 진행 중입니다. Windows는 현재 MelonLoader 경로(권장 로더)를 제공하며, 네이티브 Windows UMM과 Linux 포팅이 다음으로 예정되어 있고, 크로스 플랫폼 GUI를 검토 중입니다. 현재 번들 GUI 앱은 macOS에서만 제공됩니다.
 
 ## 소스에서 빌드 (Swift GUI 애플리케이션)
 

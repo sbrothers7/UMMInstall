@@ -1,0 +1,64 @@
+name: Release GUI (v2)
+
+# Builds the cross-platform Flutter app on each OS and attaches platform-named
+# zips to the GitHub release. The updater picks the asset by platform keyword
+# (ADOFAIModInstaller-macos.zip / -windows.zip / -linux.zip).
+on:
+  push:
+    tags: ['v2.*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: macos
+          - os: windows-latest
+            platform: windows
+          - os: ubuntu-latest
+            platform: linux
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: gui
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'linux'
+        working-directory: .
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - run: flutter config --enable-${{ matrix.platform }}-desktop
+      - run: flutter pub get
+      - run: flutter build ${{ matrix.platform }} --release
+
+      - name: Package macOS
+        if: matrix.platform == 'macos'
+        run: ditto -c -k --keepParent "build/macos/Build/Products/Release/adofai_mod_installer.app" "ADOFAIModInstaller-macos.zip"
+
+      - name: Package Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath ADOFAIModInstaller-windows.zip
+
+      - name: Package Linux
+        if: matrix.platform == 'linux'
+        run: |
+          cd build/linux/x64/release/bundle
+          zip -r "$GITHUB_WORKSPACE/gui/ADOFAIModInstaller-linux.zip" .
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: gui/ADOFAIModInstaller-*.zip
