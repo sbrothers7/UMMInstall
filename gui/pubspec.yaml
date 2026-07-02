@@ -50,6 +50,14 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.0
+
+# App icon generation (run: dart run flutter_launcher_icons). Source is a
+# 400px icon.png for now — swap in a 1024px version for crisper large sizes.
+flutter_launcher_icons:
+  macos:
+    generate: true
+    image_path: "icon.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
