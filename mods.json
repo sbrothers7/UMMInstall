@@ -2,7 +2,7 @@
   "mods": [
     {
       "id": "AdofaiTweaks",
-      "url": "https://github.com/PizzaLovers007/AdofaiTweaks/releases/download/v2.9.1/AdofaiTweaks-2.9.1.zip"
+      "url": "https://github.com/PizzaLovers007/AdofaiTweaks/releases/download/v2.9.2/AdofaiTweaks-2.9.2.zip"
     },
     {
       "id": "TUFHelper",
@@ -15,8 +15,8 @@
     },
     {
       "id": "Quartz",
-      "url": "https://github.com/Quaaartz/Quartz/releases/latest/download/QuartzUmm.zip",
-      "urlMelon": "https://github.com/Quaaartz/Quartz/releases/latest/download/Quartz.zip",
+      "url": "https://github.com/QuartzTeam/Quartz/releases/download/v2.0.0-alpha-57/QuartzUmm.zip",
+      "urlMelon": "https://github.com/QuartzTeam/Quartz/releases/download/v2.0.0-alpha-57/Quartz.zip",
       "v2": false,
       "install": "quartz"
     },
