@@ -15,8 +15,8 @@
     },
     {
       "id": "Quartz",
-      "url": "https://github.com/QuartzTeam/Quartz/releases/download/v2.0.0-alpha-57/QuartzUmm.zip",
-      "urlMelon": "https://github.com/QuartzTeam/Quartz/releases/download/v2.0.0-alpha-57/Quartz.zip",
+      "url": "https://github.com/QuartzTeam/Quartz/releases/download/v2.0.0-alpha-86/QuartzUmm.zip",
+      "urlMelon": "https://github.com/QuartzTeam/Quartz/releases/download/v2.0.0-alpha-86/Quartz.zip",
       "v2": false,
       "install": "quartz"
     },
