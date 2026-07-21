@@ -5,7 +5,7 @@ import '../models.dart';
 /// Returns null when a platform/loader combination isn't supported yet.
 class InstallScripts {
   static const _base =
-      'https://raw.githubusercontent.com/sbrothers7/UMMInstall/main/';
+      'https://raw.githubusercontent.com/sbrothers7/UMMInstall/v2/';
 
   /// Native UMM is only scripted on macOS for now; Windows/Linux use MelonLoader.
   static bool get supportsNativeUmm => Platform.isMacOS;
