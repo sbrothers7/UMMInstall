@@ -6,7 +6,7 @@
     },
     {
       "id": "TUFHelper",
-      "url": "https://github.com/coyami-ke/TUFHelper/releases/latest/download/TUFHelper.OSX.zip"
+      "url": "https://github.com/coyami-ke/TUFHelper/releases/download/v3.0.0/TUFHelper_3.0.0_mac.zip"
     },
     {
       "id": "Bismuth",
@@ -15,8 +15,8 @@
     },
     {
       "id": "Quartz",
-      "url": "https://github.com/QuartzTeam/Quartz/releases/download/v2.0.0-alpha-86/QuartzUmm.zip",
-      "urlMelon": "https://github.com/QuartzTeam/Quartz/releases/download/v2.0.0-alpha-86/Quartz.zip",
+      "url": "https://github.com/QuartzTeam/Quartz/releases/download/v2.0.0-alpha-124/QuartzUmm.zip",
+      "urlMelon": "https://github.com/QuartzTeam/Quartz/releases/download/v2.0.0-alpha-124/Quartz.zip",
       "v2": false,
       "install": "quartz"
     },
