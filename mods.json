@@ -6,17 +6,22 @@
     },
     {
       "id": "TUFHelper",
-      "url": "https://github.com/coyami-ke/TUFHelper/releases/download/v3.0.0/TUFHelper_3.0.0_mac.zip"
+      "url": "https://github.com/coyami-ke/TUFHelper/releases/download/v3.1.1/TUFHelper.OSX.3.1.1.zip"
     },
     {
       "id": "Bismuth",
-      "url": "https://github.com/sbrothers7/Bismuth/releases/latest/download/Bismuth.zip",
+      "url": "https://github.com/PrismMods/Bismuth/releases/latest/download/Bismuth.zip",
+      "v2": false
+    },
+    {
+      "id": "Sapphire",
+      "url": "https://github.com/PrismMods/Sapphire/releases/download/v1.0.0-a9/Sapphire-1.0.0-a9.zip"
       "v2": false
     },
     {
       "id": "Quartz",
-      "url": "https://github.com/QuartzTeam/Quartz/releases/download/v2.0.0-alpha-124/QuartzUmm.zip",
-      "urlMelon": "https://github.com/QuartzTeam/Quartz/releases/download/v2.0.0-alpha-124/Quartz.zip",
+      "url": "https://github.com/PrismMods/Quartz/releases/download/latest/QuartzUmm.zip",
+      "urlMelon": "https://github.com/PrismMods/Quartz/releases/download/latest/Quartz.zip",
       "v2": false,
       "install": "quartz"
     },
@@ -52,6 +57,7 @@
     {
       "id": "EnhancedEffectRemover",
       "url": "https://github.com/WsbiMango/EnhancedEffectRemover/releases/download/1.7.0/EnhancedEffectRemover_1.7.0.zip"
+      "urlMelon": "https://github.com/KkitutLab/EnhancedEffectRemover/releases/latest/download/EnhancedEffectRemover_ML.zip"
     },
     {
       "id": "XPerfect",
