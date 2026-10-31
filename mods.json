@@ -15,13 +15,13 @@
     },
     {
       "id": "Sapphire",
-      "url": "https://github.com/PrismMods/Sapphire/releases/download/v1.0.0-a9/Sapphire-1.0.0-a9.zip"
+      "url": "https://github.com/PrismMods/Sapphire/releases/download/v1.0.0-a9/Sapphire-1.0.0-a9.zip",
       "v2": false
     },
     {
       "id": "Quartz",
-      "url": "https://github.com/PrismMods/Quartz/releases/download/latest/QuartzUmm.zip",
-      "urlMelon": "https://github.com/PrismMods/Quartz/releases/download/latest/Quartz.zip",
+      "url": "https://github.com/PrismMods/Quartz/releases/latest/download/QuartzUmm.zip",
+      "urlMelon": "https://github.com/PrismMods/Quartz/releases/latest/download/Quartz.zip",
       "v2": false,
       "install": "quartz"
     },
@@ -56,7 +56,7 @@
     },
     {
       "id": "EnhancedEffectRemover",
-      "url": "https://github.com/WsbiMango/EnhancedEffectRemover/releases/download/1.7.0/EnhancedEffectRemover_1.7.0.zip"
+      "url": "https://github.com/WsbiMango/EnhancedEffectRemover/releases/download/1.7.0/EnhancedEffectRemover_1.7.0.zip",
       "urlMelon": "https://github.com/KkitutLab/EnhancedEffectRemover/releases/latest/download/EnhancedEffectRemover_ML.zip"
     },
     {
