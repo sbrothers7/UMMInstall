@@ -2,21 +2,26 @@
   "mods": [
     {
       "id": "AdofaiTweaks",
-      "url": "https://github.com/PizzaLovers007/AdofaiTweaks/releases/download/v2.9.1/AdofaiTweaks-2.9.1.zip"
+      "url": "https://github.com/PizzaLovers007/AdofaiTweaks/releases/download/v2.9.2/AdofaiTweaks-2.9.2.zip"
     },
     {
       "id": "TUFHelper",
-      "url": "https://github.com/coyami-ke/TUFHelper/releases/latest/download/TUFHelper.OSX.zip"
+      "url": "https://github.com/coyami-ke/TUFHelper/releases/download/v3.1.1/TUFHelper.OSX.3.1.1.zip"
     },
     {
       "id": "Bismuth",
-      "url": "https://github.com/sbrothers7/Bismuth/releases/latest/download/Bismuth.zip",
+      "url": "https://github.com/PrismMods/Bismuth/releases/latest/download/Bismuth.zip",
+      "v2": false
+    },
+    {
+      "id": "Sapphire",
+      "url": "https://github.com/PrismMods/Sapphire/releases/download/v1.0.0-a9/Sapphire-1.0.0-a9.zip",
       "v2": false
     },
     {
       "id": "Quartz",
-      "url": "https://github.com/Quaaartz/Quartz/releases/download/v2.0.0-alpha-45/QuartzUmm.zip",
-      "urlMelon": "https://github.com/Quaaartz/Quartz/releases/download/v2.0.0-alpha-45/Quartz.zip",
+      "url": "https://github.com/PrismMods/Quartz/releases/latest/download/QuartzUmm.zip",
+      "urlMelon": "https://github.com/PrismMods/Quartz/releases/latest/download/Quartz.zip",
       "v2": false,
       "install": "quartz"
     },
@@ -51,7 +56,8 @@
     },
     {
       "id": "EnhancedEffectRemover",
-      "url": "https://github.com/WsbiMango/EnhancedEffectRemover/releases/download/1.7.0/EnhancedEffectRemover_1.7.0.zip"
+      "url": "https://github.com/WsbiMango/EnhancedEffectRemover/releases/download/1.7.0/EnhancedEffectRemover_1.7.0.zip",
+      "urlMelon": "https://github.com/KkitutLab/EnhancedEffectRemover/releases/latest/download/EnhancedEffectRemover_ML.zip"
     },
     {
       "id": "XPerfect",

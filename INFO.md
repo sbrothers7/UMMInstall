@@ -1,13 +1,29 @@
 # More Info
 
-## Shell
+## macOS — Shell
 
 ```bash
+# from the macos/ folder:
 ./adofai-umm.sh             # install
 ./adofai-umm-uninstall.sh   # uninstall
 ```
 
 After install, launch the game via Steam and press **Ctrl+F10** for the UMM menu.
+
+## Windows — PowerShell
+
+Installs MelonLoader + the UMMCompat plugin (UMM mods load via UMMCompat). MelonLoader injects through a proxy `version.dll`, so there's no launch wrapper or extra dependencies to set up.
+
+```powershell
+# In PowerShell, from the windows/ folder:
+.\adofai-melonloader.ps1            # install
+.\adofai-melonloader-uninstall.ps1  # uninstall
+```
+
+The scripts auto-detect the game across all Steam libraries (via the registry + `libraryfolders.vdf`). MelonLoader mods go in `Mods/`, UMM mods in `UMMMods/`. Launch via Steam and press **Ctrl+F10**.
+
+> [!Note]
+> Cross-platform support is in progress. Windows currently ships the MelonLoader path (the recommended loader); native Windows UMM and a Linux port are planned next, and a cross-platform GUI is being evaluated. macOS remains the only platform with the bundled GUI app for now.
 
 ## Build from Source (Swift GUI Application)
 
