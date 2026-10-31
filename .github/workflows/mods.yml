@@ -1,0 +1,70 @@
+name: mods.json
+
+# Validates mods.json on every change. Once a day, bumps entries that track a
+# GitHub repo to their newest release and commits straight to main (the apps
+# read mods.json from main). Broken links are kept in one open issue that
+# closes itself once every link works again.
+on:
+  push:
+    paths: ['mods.json', '.github/scripts/update_mods.py', '.github/workflows/mods.yml']
+  pull_request:
+    paths: ['mods.json', '.github/scripts/update_mods.py']
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: mods-json
+  cancel-in-progress: false
+
+jobs:
+  check:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 .github/scripts/update_mods.py selftest
+      - run: python3 .github/scripts/update_mods.py check
+
+  update:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      # Scheduled runs start from the default branch; always work on main.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Bump tracked mods
+        run: python3 .github/scripts/update_mods.py update broken-links.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit
+        run: |
+          git diff --quiet -- mods.json && exit 0
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'mods.json: bump to latest releases' -- mods.json
+          git push origin HEAD:main
+
+      - name: Sync broken-links issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          title='mods.json: broken links'
+          num=$(gh issue list --state open --json number,title \
+            --jq ".[] | select(.title == \"$title\") | .number" | head -1)
+          if [ -f broken-links.md ]; then
+            if [ -n "$num" ]; then
+              gh issue edit "$num" --body-file broken-links.md
+            else
+              gh issue create --title "$title" --body-file broken-links.md
+            fi
+          elif [ -n "$num" ]; then
+            gh issue close "$num" --comment 'All links work again.'
+          fi
