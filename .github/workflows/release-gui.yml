@@ -32,6 +32,7 @@ jobs:
 
       - run: flutter config --enable-${{ matrix.platform }}-desktop
       - run: flutter pub get
+      - run: flutter test test/mod_downloader_test.dart
       - run: flutter build ${{ matrix.platform }} --release
 
       - name: Package macOS

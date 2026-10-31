@@ -14,8 +14,13 @@ class ModDownloadException implements Exception {
 }
 
 /// Downloads a mod zip and places it for the active loader. Ported from the
-/// macOS app's ModDownloader, including the Quartz special-casing.
+/// macOS app's ModDownloader.
 class ModDownloader {
+  /// MelonLoader's folders in the game root. A zip whose top level has any of
+  /// these is laid out for the game root (e.g. `Mods/x.dll` + `UserLibs/`) and
+  /// is merged there rather than wrapped as a single mod folder.
+  static const _gameRootDirs = {'Mods', 'Plugins', 'UserData', 'UserLibs'};
+
   static Future<void> install({
     required Mod mod,
     required bool isGameV2,
@@ -26,15 +31,30 @@ class ModDownloader {
   }) async {
     final url = mod.resolvedUrl(isGameV2: isGameV2, isMelonLoader: isMelonLoader);
     final bodyBytes = await _download(url, onProgress);
+    installBytes(bodyBytes, modId: mod.id, gameRoot: gameRoot, modsDir: modsDir);
+  }
 
+  /// Extracts a downloaded zip and places it. Split from [install] for tests.
+  static void installBytes(
+    List<int> bodyBytes, {
+    required String modId,
+    required String gameRoot,
+    required String modsDir,
+  }) {
     final tmp = Directory(
-        p.join(Directory.systemTemp.path, 'adofai_extract_${mod.id}'));
+        p.join(Directory.systemTemp.path, 'adofai_extract_$modId'));
     if (tmp.existsSync()) tmp.deleteSync(recursive: true);
     tmp.createSync(recursive: true);
     try {
       final archive = ZipDecoder().decodeBytes(bodyBytes);
       for (final f in archive) {
-        final outPath = p.join(tmp.path, f.name);
+        if (f.isSymbolicLink) continue;
+        // Reject entries like `../x` or `/abs/x` that would land outside tmp.
+        final outPath = p.normalize(p.join(tmp.path, f.name));
+        if (!p.isWithin(tmp.path, outPath)) {
+          if (p.equals(tmp.path, outPath)) continue; // a `./` entry
+          throw ModDownloadException('Unsafe path in archive: ${f.name}');
+        }
         if (f.isFile) {
           File(outPath)
             ..createSync(recursive: true)
@@ -51,8 +71,15 @@ class ModDownloader {
           .toList();
       if (visible.isEmpty) throw ModDownloadException('Archive was empty');
 
-      if (mod.install == 'quartz') {
-        _installQuartz(tmp.path, visible, gameRoot);
+      // Game-root layout (MelonLoader builds such as Quartz and
+      // EnhancedEffectRemover_ML) → merge each folder into the game root.
+      final rootDirs = visible.where((n) =>
+          _gameRootDirs.contains(n) &&
+          Directory(p.join(tmp.path, n)).existsSync());
+      if (rootDirs.isNotEmpty) {
+        for (final d in rootDirs) {
+          _merge(p.join(tmp.path, d), p.join(gameRoot, d));
+        }
         return;
       }
 
@@ -66,7 +93,7 @@ class ModDownloader {
       }
 
       // Loose files → wrap them in a folder named after the mod.
-      final dest = p.join(modsDir, mod.id);
+      final dest = p.join(modsDir, modId);
       if (Directory(dest).existsSync()) Directory(dest).deleteSync(recursive: true);
       Directory(dest).createSync(recursive: true);
       for (final item in visible) {
@@ -104,32 +131,6 @@ class ModDownloader {
     } finally {
       client.close();
     }
-  }
-
-  /// Quartz: MelonLoader build is laid out for the game root (Mods/ + UserData/);
-  /// the UMM build is a single mod folder that goes whole into Mods/.
-  static void _installQuartz(String extractDir, List<String> visible, String gameRoot) {
-    final modsDest = p.join(gameRoot, 'Mods');
-    final userDataDest = p.join(gameRoot, 'UserData');
-    Directory(modsDest).createSync(recursive: true);
-    Directory(userDataDest).createSync(recursive: true);
-
-    if (visible.contains('Mods') || visible.contains('UserData')) {
-      if (visible.contains('Mods')) {
-        _merge(p.join(extractDir, 'Mods'), modsDest);
-      }
-      if (visible.contains('UserData')) {
-        _merge(p.join(extractDir, 'UserData'), userDataDest);
-      }
-      return;
-    }
-
-    final folder = visible.firstWhere(
-      (n) => Directory(p.join(extractDir, n)).existsSync(),
-      orElse: () => '',
-    );
-    if (folder.isEmpty) throw ModDownloadException('Archive was empty');
-    _moveInto(p.join(extractDir, folder), p.join(modsDest, folder));
   }
 
   /// Moves each top-level child of [src] into [dst], replacing existing entries.
