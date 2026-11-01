@@ -40,7 +40,11 @@ class ModlistMod {
 class ModlistClient {
   static const base = 'https://modlist.org/api/mods';
 
-  /// Fetches every ADOFAI mod, following pagination. Throws on any failure.
+  /// Slugs safe in a URL path and as a folder name (as update_mods.py checks).
+  static final _safeSlug = RegExp(r'^[a-z0-9][a-z0-9._-]*$');
+
+  /// Fetches every ADOFAI mod, following pagination, skipping any whose slug
+  /// isn't [_safeSlug]. Throws on any failure.
   static Future<List<ModlistMod>> fetchAll() async {
     final mods = <ModlistMod>[];
     var page = 1;
@@ -53,7 +57,8 @@ class ModlistClient {
       }
       final body = jsonDecode(resp.body) as Map<String, dynamic>;
       mods.addAll((body['mods'] as List)
-          .map((e) => ModlistMod.fromJson(e as Map<String, dynamic>)));
+          .map((e) => ModlistMod.fromJson(e as Map<String, dynamic>))
+          .where((m) => _safeSlug.hasMatch(m.slug)));
       final total = (body['pagination'] as Map<String, dynamic>)['totalPages'] as int;
       if (page >= total) return mods;
       page++;

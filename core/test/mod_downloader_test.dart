@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:amm_core/amm_core.dart';
+import 'package:archive/archive.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:test/test.dart';
@@ -61,6 +63,38 @@ void main() {
             e is ModDownloadException &&
             e.message.contains('HTTP 404') &&
             e.message.contains('no umm macos download link'))));
+  });
+
+  test('download wraps ClientException', () {
+    final saved = httpClient;
+    addTearDown(() => httpClient = saved);
+    httpClient = MockClient((_) async => throw http.ClientException('offline'));
+    expect(
+        ModDownloader.download('https://x/y'),
+        throwsA(predicate((e) =>
+            e is ModDownloadException && e.message == 'Download failed: offline')));
+  });
+
+  test('installBytes wraps a non-zip body', () {
+    bool notZip(Object? e) =>
+        e is ModDownloadException && e.message.startsWith('Not a valid zip: ');
+    expect(() => install(utf8.encode('<html>nope</html>')), throwsA(predicate(notZip)));
+    final locked = ZipEncoder(password: 'pw')
+        .encodeBytes(Archive()..addFile(ArchiveFile.string('M.dll', 'a')));
+    expect(
+        () => install(locked),
+        throwsA(predicate(
+            (e) => notZip(e) && (e as ModDownloadException).message.contains('password'))));
+  });
+
+  test('installBytes rejects a mod id with a slash', () {
+    for (final id in ['a/b', '../x', '..', '.', '']) {
+      expect(
+          () => ModDownloader.installBytes(zip({'M.dll': 'a'}),
+              modId: id, gameRoot: game, modsDir: mods),
+          throwsA(predicate(
+              (e) => e is ModDownloadException && e.message == 'Bad mod id: $id')));
+    }
   });
 
   for (final name in ['../escaped.txt', 'a/../../escaped.txt']) {

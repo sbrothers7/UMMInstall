@@ -100,6 +100,30 @@ void main() {
     expect(m(LoaderKind.melonLoader, false, true, true), Method.ml);
   });
 
+  Method installed(Method? recorded, LoaderKind loader, {bool v2 = false}) =>
+      installedMethod(
+        recorded: recorded,
+        loader: loader,
+        isV2: v2,
+        appleSilicon: true,
+        hasArm64Slice: true,
+      );
+
+  test('installedMethod: record says native but MelonLoader is there', () {
+    expect(installed(Method.native, LoaderKind.melonLoader), Method.ml);
+  });
+
+  test('installedMethod: record says ml but UMM is there', () {
+    expect(installed(Method.ml, LoaderKind.umm), Method.native);
+    expect(installed(Method.ml, LoaderKind.umm, v2: true), Method.rosetta);
+  });
+
+  test('installedMethod: a consistent record wins', () {
+    expect(installed(Method.rosetta, LoaderKind.umm), Method.rosetta);
+    expect(installed(Method.ml, LoaderKind.melonLoader), Method.ml);
+    expect(installed(null, LoaderKind.umm), Method.native);
+  });
+
   test('missingLoaderFiles lists absent ml files', () {
     final dir = Directory.systemTemp.createTempSync('amm_game_state');
     addTearDown(() => dir.deleteSync(recursive: true));

@@ -61,6 +61,19 @@ void main() {
     expect(mods.map((m) => m.slug), ['m1', 'm2']);
   });
 
+  test('fetchAll drops entries with unsafe slugs', () async {
+    httpClient = MockClient((_) async => http.Response(
+        jsonEncode({
+          'mods': [
+            for (final s in ['good-1.x', '../evil', 'a/b', 'Upper', '', '.hidden'])
+              {...quartz, 'slug': s}
+          ],
+          'pagination': {'totalPages': 1},
+        }),
+        200));
+    expect((await ModlistClient.fetchAll()).map((m) => m.slug), ['good-1.x']);
+  });
+
   test('downloadUri omits null gameVersion', () {
     expect(
         ModlistClient.downloadUri('quartz', loader: 'umm', platform: 'macos')

@@ -128,6 +128,27 @@ Method inferMethod({
   return Method.ml;
 }
 
+/// The method of an existing install: [recorded] when it agrees with the
+/// loader on disk, else [inferMethod]'s guess.
+Method installedMethod({
+  required Method? recorded,
+  required LoaderKind loader,
+  required bool isV2,
+  required bool appleSilicon,
+  required bool hasArm64Slice,
+}) {
+  if (recorded != null &&
+      (recorded == Method.ml) == (loader == LoaderKind.melonLoader)) {
+    return recorded;
+  }
+  return inferMethod(
+    loader: loader,
+    isV2: isV2,
+    appleSilicon: appleSilicon,
+    hasArm64Slice: hasArm64Slice,
+  );
+}
+
 /// MelonLoader files that are absent under the game folder.
 List<String> missingLoaderFiles(GameFacts f) {
   if (f.loader != LoaderKind.melonLoader) return [];

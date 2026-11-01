@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -41,6 +42,7 @@ class ModDownloader {
   /// Extracts a downloaded zip and places it, returning the absolute path of
   /// each top-level item placed. Split from [install] for tests. With
   /// [melonNative], loose files go straight into [modsDir] instead of a folder.
+  /// [modId] names folders, so it must be a single path segment.
   static List<String> installBytes(
     List<int> bodyBytes, {
     required String modId,
@@ -48,27 +50,38 @@ class ModDownloader {
     required String modsDir,
     bool melonNative = false,
   }) {
+    if (modId.isEmpty || modId == '.' || modId == '..' || modId != p.basename(modId)) {
+      throw ModDownloadException('Bad mod id: $modId');
+    }
     final tmp = Directory(
         p.join(Directory.systemTemp.path, 'adofai_extract_$modId'));
     if (tmp.existsSync()) tmp.deleteSync(recursive: true);
     tmp.createSync(recursive: true);
     try {
-      final archive = ZipDecoder().decodeBytes(bodyBytes);
-      for (final f in archive) {
-        if (f.isSymbolicLink) continue;
-        // Reject entries like `../x` or `/abs/x` that would land outside tmp.
-        final outPath = p.normalize(p.join(tmp.path, f.name));
-        if (!p.isWithin(tmp.path, outPath)) {
-          if (p.equals(tmp.path, outPath)) continue; // a `./` entry
-          throw ModDownloadException('Unsafe path in archive: ${f.name}');
+      // Entries are decoded lazily, so a bad archive can throw in the loop.
+      try {
+        final archive = ZipDecoder().decodeBytes(bodyBytes);
+        // A body that isn't a zip at all decodes to nothing.
+        if (archive.isEmpty) throw const FormatException('no entries');
+        for (final f in archive) {
+          if (f.isSymbolicLink) continue;
+          // Reject entries like `../x` or `/abs/x` that would land outside tmp.
+          final outPath = p.normalize(p.join(tmp.path, f.name));
+          if (!p.isWithin(tmp.path, outPath)) {
+            if (p.equals(tmp.path, outPath)) continue; // a `./` entry
+            throw ModDownloadException('Unsafe path in archive: ${f.name}');
+          }
+          if (f.isFile) {
+            File(outPath)
+              ..createSync(recursive: true)
+              ..writeAsBytesSync(f.content as List<int>);
+          } else {
+            Directory(outPath).createSync(recursive: true);
+          }
         }
-        if (f.isFile) {
-          File(outPath)
-            ..createSync(recursive: true)
-            ..writeAsBytesSync(f.content as List<int>);
-        } else {
-          Directory(outPath).createSync(recursive: true);
-        }
+      } on FormatException catch (e) {
+        // Also catches ArchiveException, a FormatException.
+        throw ModDownloadException('Not a valid zip: ${e.message}');
       }
 
       final visible = tmp
@@ -127,28 +140,41 @@ class ModDownloader {
   /// Streams the download so we can report progress. Falls back to an
   /// indeterminate bar (onProgress never reports a fraction) when the server
   /// doesn't send a Content-Length. An error body's `statusMessage` (as
-  /// modlist.org sends) is added to the exception.
+  /// modlist.org sends) is added to the exception. Transport failures become
+  /// a [ModDownloadException] too.
   static Future<Uint8List> download(String url,
       {void Function(double)? onProgress}) async {
-    final resp = await httpClient.send(http.Request('GET', Uri.parse(url)));
-    if (resp.statusCode >= 400) {
-      String? msg;
-      try {
-        msg = (jsonDecode(await resp.stream.bytesToString())
-            as Map<String, dynamic>)['statusMessage'] as String?;
-      } catch (_) {}
-      throw ModDownloadException(
-          'HTTP ${resp.statusCode}${msg == null ? '' : ': $msg'}');
+    try {
+      final resp = await httpClient.send(http.Request('GET', Uri.parse(url)));
+      if (resp.statusCode >= 400) {
+        String? msg;
+        try {
+          msg = (jsonDecode(await resp.stream.bytesToString())
+              as Map<String, dynamic>)['statusMessage'] as String?;
+        } catch (_) {}
+        throw ModDownloadException(
+            'HTTP ${resp.statusCode}${msg == null ? '' : ': $msg'}');
+      }
+      final total = resp.contentLength ?? 0;
+      final builder = BytesBuilder(copy: false);
+      var received = 0;
+      await for (final chunk in resp.stream) {
+        builder.add(chunk);
+        received += chunk.length;
+        if (total > 0 && onProgress != null) onProgress(received / total);
+      }
+      return builder.takeBytes();
+    } on Exception catch (e) {
+      final msg = switch (e) {
+        http.ClientException(:final message) => message,
+        SocketException(:final message) => message,
+        HandshakeException(:final message) => message,
+        TimeoutException(:final message) => message ?? 'timed out',
+        _ => null,
+      };
+      if (msg == null) rethrow;
+      throw ModDownloadException('Download failed: $msg');
     }
-    final total = resp.contentLength ?? 0;
-    final builder = BytesBuilder(copy: false);
-    var received = 0;
-    await for (final chunk in resp.stream) {
-      builder.add(chunk);
-      received += chunk.length;
-      if (total > 0 && onProgress != null) onProgress(received / total);
-    }
-    return builder.takeBytes();
   }
 
   /// Moves each top-level child of [src] into [dst], replacing existing entries;
