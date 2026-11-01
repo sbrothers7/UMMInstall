@@ -126,6 +126,32 @@ class SteamConfig {
     return SteamLaunchOptionsOutcome(updated: updated, steamRunning: isSteamRunning());
   }
 
+  /// The unescaped Launch Options value for ADOFAI in [vdfText], or null.
+  static String? readLaunchOptions(String vdfText) {
+    final apps = _blockRange(vdfText, 'apps', 0, vdfText.length);
+    if (apps == null) return null;
+    final block = _blockRange(vdfText, appId, apps[0], apps[1]);
+    if (block == null) return null;
+    final vr = _launchOptionsValueRange(vdfText, block[0], block[1]);
+    if (vr == null) return null;
+    final raw = vdfText.substring(vr[0] + 1, vr[1] - 1);
+    return raw.replaceAllMapped(RegExp(r'\\(["\\])'), (m) => m[1]!);
+  }
+
+  /// Whether Launch Options point at setup_helper.sh; null when no
+  /// `localconfig.vdf` exists.
+  static bool? launchOptionsSet() {
+    final paths = localConfigPaths();
+    if (paths.isEmpty) return null;
+    for (final path in paths) {
+      try {
+        final v = readLaunchOptions(File(path).readAsStringSync());
+        if (v != null && v.contains('setup_helper.sh')) return true;
+      } catch (_) {}
+    }
+    return false;
+  }
+
   // MARK: - Targeted VDF edit
 
   static String? _apply(String text, String escapedValue) {

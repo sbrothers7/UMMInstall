@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
 import '../mod_registry.dart';
+import '../mod_store.dart';
 import '../net.dart';
 
 class ModDownloadException implements Exception {
@@ -89,7 +90,7 @@ class ModDownloader {
       // Single top-level folder → move it whole into the mods dir.
       if (visible.length == 1 &&
           Directory(p.join(tmp.path, visible.first)).existsSync()) {
-        _moveInto(p.join(tmp.path, visible.first), p.join(modsDir, visible.first));
+        ModStore.moveEntity(p.join(tmp.path, visible.first), p.join(modsDir, visible.first));
         return;
       }
 
@@ -98,7 +99,7 @@ class ModDownloader {
       if (Directory(dest).existsSync()) Directory(dest).deleteSync(recursive: true);
       Directory(dest).createSync(recursive: true);
       for (final item in visible) {
-        _moveInto(p.join(tmp.path, item), p.join(dest, item));
+        ModStore.moveEntity(p.join(tmp.path, item), p.join(dest, item));
       }
     } finally {
       if (tmp.existsSync()) {
@@ -135,45 +136,7 @@ class ModDownloader {
     for (final entity in Directory(src).listSync()) {
       final name = p.basename(entity.path);
       if (name.startsWith('.')) continue;
-      _moveInto(entity.path, p.join(dst, name));
-    }
-  }
-
-  /// Moves a file or directory to [dst] (replacing it), handling cross-volume
-  /// moves by falling back to copy + delete.
-  static void _moveInto(String src, String dst) {
-    final isDir = FileSystemEntity.isDirectorySync(src);
-    if (isDir) {
-      if (Directory(dst).existsSync()) Directory(dst).deleteSync(recursive: true);
-    } else if (File(dst).existsSync()) {
-      File(dst).deleteSync();
-    }
-    try {
-      if (isDir) {
-        Directory(src).renameSync(dst);
-      } else {
-        File(src).renameSync(dst);
-      }
-    } on FileSystemException {
-      // Cross-device: copy then remove the source.
-      _copyRecursive(src, dst);
-      if (isDir) {
-        Directory(src).deleteSync(recursive: true);
-      } else {
-        File(src).deleteSync();
-      }
-    }
-  }
-
-  static void _copyRecursive(String src, String dst) {
-    if (FileSystemEntity.isDirectorySync(src)) {
-      Directory(dst).createSync(recursive: true);
-      for (final entity in Directory(src).listSync()) {
-        _copyRecursive(entity.path, p.join(dst, p.basename(entity.path)));
-      }
-    } else {
-      File(dst).parent.createSync(recursive: true);
-      File(src).copySync(dst);
+      ModStore.moveEntity(entity.path, p.join(dst, name));
     }
   }
 }

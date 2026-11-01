@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:amm_core/amm_core.dart';
 import 'package:flutter/foundation.dart';
@@ -217,8 +216,8 @@ class AppState extends ChangeNotifier {
   // MARK: - Manage / delete mods
 
   void openManageMods() {
-    installedMods = _scanInstalledMods();
-    archivedMods = _scanArchivedMods();
+    installedMods = ModStore.scanInstalled();
+    archivedMods = ModStore.scanArchived();
     selectedForDelete.clear();
     phase = InstallPhase.manageMods;
     notifyListeners();
@@ -232,13 +231,7 @@ class AppState extends ChangeNotifier {
   /// Permanently removes installed mods from disk.
   void deleteMods(Iterable<String> paths) {
     for (final path in paths) {
-      try {
-        if (FileSystemEntity.isDirectorySync(path)) {
-          Directory(path).deleteSync(recursive: true);
-        } else if (File(path).existsSync()) {
-          File(path).deleteSync();
-        }
-      } catch (_) {}
+      ModStore.delete(path);
     }
     selectedForDelete.removeAll(paths.toSet());
     _refreshMods();
@@ -258,160 +251,26 @@ class AppState extends ChangeNotifier {
           isDirectory: FileSystemEntity.isDirectorySync(path),
         ),
       );
-      _archiveOne(mod);
+      ModStore.archive(mod);
     }
     selectedForDelete.removeAll(paths.toSet());
     _refreshMods();
   }
 
-  void _archiveOne(InstalledMod mod) {
-    final base = p.basename(mod.path);
-    final entryDir = p.join(GamePaths.archivePath, base);
-    if (Directory(entryDir).existsSync()) {
-      Directory(entryDir).deleteSync(recursive: true);
-    }
-    Directory(entryDir).createSync(recursive: true);
-    _moveEntity(mod.path, p.join(entryDir, base));
-    File(p.join(entryDir, '_archive.json')).writeAsStringSync(jsonEncode({
-      'name': mod.name,
-      'origin': mod.path,
-      'isDirectory': mod.isDirectory,
-      'payload': base,
-    }));
-  }
-
   void restoreMod(ArchivedMod a) {
-    Directory(p.dirname(a.originPath)).createSync(recursive: true);
-    if (FileSystemEntity.typeSync(a.originPath) !=
-        FileSystemEntityType.notFound) {
-      if (FileSystemEntity.isDirectorySync(a.originPath)) {
-        Directory(a.originPath).deleteSync(recursive: true);
-      } else {
-        File(a.originPath).deleteSync();
-      }
-    }
-    if (FileSystemEntity.typeSync(a.payloadPath) !=
-        FileSystemEntityType.notFound) {
-      _moveEntity(a.payloadPath, a.originPath);
-    }
-    final entryDir = p.join(GamePaths.archivePath, a.key);
-    if (Directory(entryDir).existsSync()) {
-      Directory(entryDir).deleteSync(recursive: true);
-    }
+    ModStore.restore(a);
     _refreshMods();
   }
 
   void deleteArchived(ArchivedMod a) {
-    final entryDir = p.join(GamePaths.archivePath, a.key);
-    if (Directory(entryDir).existsSync()) {
-      Directory(entryDir).deleteSync(recursive: true);
-    }
+    ModStore.deleteArchived(a);
     _refreshMods();
   }
 
   void _refreshMods() {
-    installedMods = _scanInstalledMods();
-    archivedMods = _scanArchivedMods();
+    installedMods = ModStore.scanInstalled();
+    archivedMods = ModStore.scanArchived();
     notifyListeners();
-  }
-
-  List<ArchivedMod> _scanArchivedMods() {
-    final root = Directory(GamePaths.archivePath);
-    if (!root.existsSync()) return [];
-    final result = <ArchivedMod>[];
-    for (final entity in root.listSync()) {
-      if (entity is! Directory) continue;
-      final meta = File(p.join(entity.path, '_archive.json'));
-      if (!meta.existsSync()) continue;
-      try {
-        final j = jsonDecode(meta.readAsStringSync()) as Map<String, dynamic>;
-        result.add(ArchivedMod(
-          name: j['name'] as String? ?? p.basename(entity.path),
-          key: p.basename(entity.path),
-          originPath: j['origin'] as String,
-          isDirectory: j['isDirectory'] as bool? ?? true,
-          payloadPath: p.join(entity.path, j['payload'] as String),
-        ));
-      } catch (_) {}
-    }
-    result.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-    return result;
-  }
-
-  void _moveEntity(String src, String dst) {
-    final isDir = FileSystemEntity.isDirectorySync(src);
-    if (isDir && Directory(dst).existsSync()) {
-      Directory(dst).deleteSync(recursive: true);
-    } else if (!isDir && File(dst).existsSync()) {
-      File(dst).deleteSync();
-    }
-    try {
-      if (isDir) {
-        Directory(src).renameSync(dst);
-      } else {
-        File(src).renameSync(dst);
-      }
-    } on FileSystemException {
-      _copyRecursive(src, dst);
-      if (isDir) {
-        Directory(src).deleteSync(recursive: true);
-      } else {
-        File(src).deleteSync();
-      }
-    }
-  }
-
-  void _copyRecursive(String src, String dst) {
-    if (FileSystemEntity.isDirectorySync(src)) {
-      Directory(dst).createSync(recursive: true);
-      for (final entity in Directory(src).listSync()) {
-        _copyRecursive(entity.path, p.join(dst, p.basename(entity.path)));
-      }
-    } else {
-      File(dst).parent.createSync(recursive: true);
-      File(src).copySync(dst);
-    }
-  }
-
-  /// Scans the game's mods folders (Mods/ and UMMMods/) for installed mods —
-  /// folders (UMM-style) and loose .dll files (MelonLoader-style).
-  List<InstalledMod> _scanInstalledMods() {
-    final result = <InstalledMod>[];
-    final seen = <String>{};
-    for (final dirPath in {GamePaths.ummModsPath, GamePaths.melonModsPath}) {
-      final dir = Directory(dirPath);
-      if (!dir.existsSync()) continue;
-      for (final entity in dir.listSync()) {
-        final name = p.basename(entity.path);
-        if (name.startsWith('.') || name == '__MACOSX') continue;
-        if (!seen.add(entity.path)) continue;
-        if (entity is Directory) {
-          result.add(InstalledMod(
-            name: _modDisplayName(entity.path) ?? name,
-            path: entity.path,
-            isDirectory: true,
-          ));
-        } else if (entity is File && name.toLowerCase().endsWith('.dll')) {
-          result.add(InstalledMod(name: name, path: entity.path, isDirectory: false));
-        }
-      }
-    }
-    result.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-    return result;
-  }
-
-  /// Reads a UMM mod folder's Info.json DisplayName, if present.
-  String? _modDisplayName(String folderPath) {
-    for (final fname in const ['Info.json', 'info.json']) {
-      final f = File(p.join(folderPath, fname));
-      if (!f.existsSync()) continue;
-      try {
-        final j = jsonDecode(f.readAsStringSync()) as Map<String, dynamic>;
-        final dn = j['DisplayName'] as String?;
-        if (dn != null && dn.isNotEmpty) return dn;
-      } catch (_) {}
-    }
-    return null;
   }
 
   /// Returns to the landing screen, re-deriving it from the current loader
@@ -479,6 +338,7 @@ class AppState extends ChangeNotifier {
         return;
       }
       log(LogLevel.ok, t('$name installed.', '$name 설치 완료.'));
+      _recordMethod(_guiMethod(selectedLoader));
     }
 
     // MelonLoader on macOS/Linux injects via setup_helper.sh, which Steam must
@@ -556,11 +416,13 @@ class AppState extends ChangeNotifier {
   Future<void> _runUninstall() async {
     final melon = hasMelonLoader;
     final name = melon ? 'MelonLoader' : 'Unity Mod Manager';
-    final call = InstallScripts.uninstall(inferMethod(
-        loader: melon ? LoaderKind.melonLoader : LoaderKind.umm,
-        isV2: isGameV2,
-        appleSilicon: GamePaths.isAppleSilicon(),
-        hasArm64Slice: GamePaths.hasArm64Slice()));
+    final call = InstallScripts.uninstall(
+        AmmRecord.load(GamePaths.gamePath).method ??
+            inferMethod(
+                loader: melon ? LoaderKind.melonLoader : LoaderKind.umm,
+                isV2: isGameV2,
+                appleSilicon: GamePaths.isAppleSilicon(),
+                hasArm64Slice: GamePaths.hasArm64Slice()));
     if (call == null) {
       log(LogLevel.error, t("$name uninstall isn't supported on this platform yet.",
           '$name 제거는 아직 이 플랫폼에서 지원되지 않습니다.'));
@@ -576,6 +438,7 @@ class AppState extends ChangeNotifier {
       return;
     }
     log(LogLevel.ok, t('$name uninstalled.', '$name 제거 완료.'));
+    _recordMethod(null);
     if (melon && !Platform.isWindows) {
       _clearLaunchOptions();
     }
@@ -594,11 +457,13 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _runMigration() async {
-    final unCall = InstallScripts.uninstall(inferMethod(
-        loader: LoaderKind.umm,
-        isV2: isGameV2,
-        appleSilicon: GamePaths.isAppleSilicon(),
-        hasArm64Slice: GamePaths.hasArm64Slice()));
+    final unCall = InstallScripts.uninstall(
+        AmmRecord.load(GamePaths.gamePath).method ??
+            inferMethod(
+                loader: LoaderKind.umm,
+                isV2: isGameV2,
+                appleSilicon: GamePaths.isAppleSilicon(),
+                hasArm64Slice: GamePaths.hasArm64Slice()));
     final inCall = InstallScripts.install(Method.ml);
     if (unCall == null || inCall == null) {
       log(LogLevel.error, t("Migration isn't supported on this platform yet.",
@@ -627,11 +492,12 @@ class AppState extends ChangeNotifier {
       return;
     }
     log(LogLevel.ok, t('MelonLoader installed.', 'MelonLoader 설치 완료.'));
+    _recordMethod(Method.ml);
     if (!Platform.isWindows) {
       _applyLaunchOptions();
     }
 
-    final found = _findUmmModsInModsFolder();
+    final found = ModStore.findUmmMods(GamePaths.ummModsPath);
     if (found.isEmpty) {
       _complete(true, t('Migration complete.', '마이그레이션 완료.'));
     } else {
@@ -642,40 +508,14 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// UMM mods are folders under Mods/ that contain an info.json.
-  List<String> _findUmmModsInModsFolder() {
-    final dir = Directory(GamePaths.ummModsPath);
-    if (!dir.existsSync()) return [];
-    final result = <String>[];
-    for (final entity in dir.listSync()) {
-      if (entity is! Directory) continue;
-      final name = p.basename(entity.path);
-      if (name.startsWith('.')) continue;
-      final hasInfo = entity.listSync().any(
-          (f) => p.basename(f.path).toLowerCase() == 'info.json');
-      if (hasInfo) result.add(name);
-    }
-    result.sort();
-    return result;
-  }
-
   void moveMigratableMods() {
-    final src = GamePaths.ummModsPath;
-    final dst = GamePaths.melonModsPath;
-    Directory(dst).createSync(recursive: true);
-    var moved = 0;
-    for (final name in migratableMods) {
-      try {
-        final to = p.join(dst, name);
-        if (Directory(to).existsSync()) Directory(to).deleteSync(recursive: true);
-        Directory(p.join(src, name)).renameSync(to);
-        moved++;
-      } catch (e) {
-        log(LogLevel.error, t('Failed to move $name.', '$name 이동 실패.'));
-        log(LogLevel.detail, e.toString());
-      }
-    }
-    log(LogLevel.ok, t('Moved $moved mod(s) to UMMMods/.', '$moved개 모드를 UMMMods/로 이동했습니다.'));
+    final moved = ModStore.moveMods(
+        migratableMods, GamePaths.ummModsPath, GamePaths.melonModsPath,
+        onError: (name, e) {
+      log(LogLevel.error, t('Failed to move $name.', '$name 이동 실패.'));
+      log(LogLevel.detail, e.toString());
+    });
+    log(LogLevel.ok, t('Moved ${moved.length} mod(s) to UMMMods/.', '${moved.length}개 모드를 UMMMods/로 이동했습니다.'));
     migratableMods = [];
     _complete(true, t('Migration complete.', '마이그레이션 완료.'));
   }
@@ -689,6 +529,13 @@ class AppState extends ChangeNotifier {
   }
 
   // MARK: - Helpers
+
+  void _recordMethod(Method? m) {
+    final root = GamePaths.gamePath;
+    AmmRecord.load(root)
+      ..method = m
+      ..save(root);
+  }
 
   void _applyLaunchOptions() {
     final helper = p.join(GamePaths.gamePath, 'setup_helper.sh');
