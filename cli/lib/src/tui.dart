@@ -34,6 +34,12 @@ bool _isEnter(String k) => k == '\r' || k == '\n';
 class MenuState {
   int selected = 0;
 
+  /// True while an action (picker, command, "Press any key") owns the screen.
+  bool busy = false;
+
+  /// Whether a background update may redraw the menu now.
+  bool get canRedraw => !busy;
+
   /// The chosen action for [key], or null when it only moved the cursor.
   MenuAction? handle(String key) {
     const all = MenuAction.values;
@@ -363,12 +369,19 @@ Future<int> runTui(Ctx c) async {
         .then((cat) async {
           catalog = cat;
           await refreshNotes();
-          if (!done) redraw();
+          if (!done && menu.canRedraw) redraw();
         })
         .catchError((_) {});
     while (!done) {
       final a = menu.handle(await t.key());
-      if (a != null) await act(a);
+      if (a != null) {
+        menu.busy = true;
+        try {
+          await act(a);
+        } finally {
+          menu.busy = false;
+        }
+      }
       if (!done) redraw();
     }
   } finally {

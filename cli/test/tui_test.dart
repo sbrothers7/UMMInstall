@@ -49,6 +49,15 @@ void main() {
     expect(out, contains('(1 updates)'));
   });
 
+  test('background updates do not redraw while an action is busy', () {
+    final m = MenuState();
+    expect(m.canRedraw, isTrue);
+    m.busy = true;
+    expect(m.canRedraw, isFalse);
+    m.busy = false;
+    expect(m.canRedraw, isTrue);
+  });
+
   test('picker space toggles in multi mode', () {
     final p = PickerState(['a', 'b'], multi: true);
     p.handle(' ');
