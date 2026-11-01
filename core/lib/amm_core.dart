@@ -1,8 +1,10 @@
+export 'src/catalog.dart';
 export 'src/game_state.dart';
 export 'src/install/install_scripts.dart';
 export 'src/install/mod_downloader.dart';
 export 'src/install/script_runner.dart';
 export 'src/mod_registry.dart';
+export 'src/modlist.dart';
 export 'src/mod_store.dart';
 export 'src/models.dart';
 export 'src/net.dart';

@@ -30,7 +30,7 @@ TRACKS = [
     ("urlMelon", "repoMelon", "assetMelon", "versionMelon"),
 ]
 LINK_FIELDS = ("url", "urlV2", "urlMelon")
-STR_FIELDS = {"id", "url", "urlV2", "urlMelon", "install", "repo", "asset",
+STR_FIELDS = {"id", "slug", "url", "urlV2", "urlMelon", "install", "repo", "asset",
               "assetMelon", "repoMelon", "version", "versionMelon"}
 BOOL_FIELDS = {"v2", "v3", "jalib", "prerelease"}
 
@@ -39,7 +39,7 @@ def validate(data):
     """Returns a list of problems; empty means the file is usable by the apps."""
     if not isinstance(data, dict) or not isinstance(data.get("mods"), list):
         return ['top level must be {"mods": [...]}']
-    errors, seen = [], set()
+    errors, seen, seen_slugs = [], set(), set()
     for i, m in enumerate(data["mods"]):
         where = f"mods[{i}]"
         if not isinstance(m, dict):
@@ -52,6 +52,15 @@ def validate(data):
         if m.get("id") in seen:
             errors.append(f"{where}: duplicate id")
         seen.add(m.get("id"))
+        slug = m.get("slug")
+        if not isinstance(slug, str) or not slug:
+            errors.append(f"{where}: missing slug")
+        elif not re.fullmatch(r"[a-z0-9][a-z0-9._-]*", slug):
+            errors.append(f"{where}: bad slug {slug!r}")
+        elif slug in seen_slugs:
+            errors.append(f"{where}: duplicate slug")
+        else:
+            seen_slugs.add(slug)
         for key, value in m.items():
             if key in STR_FIELDS and not isinstance(value, str):
                 errors.append(f"{where}: {key} must be a string")
@@ -208,11 +217,14 @@ def selftest():
     assert pick(releases, r"Other", False).startswith("release v1.2.0 has no asset")
     assert pick([rel("latest-alpha", ["Mod.zip"])], "Mod", False)[0] == "latest-alpha"
 
-    assert validate({"mods": [{"id": "A", "url": "u"}]}) == []
-    assert validate({"mods": [{"id": "A"}]}) == ["mods[0] (A): missing url"]
-    assert any("duplicate" in e for e in validate({"mods": [{"id": "A", "url": "u"}] * 2}))
-    assert any("regex" in e for e in validate({"mods": [{"id": "A", "url": "u", "repo": "o/r", "asset": "("}]}))
-    assert any("unknown field" in e for e in validate({"mods": [{"id": "A", "url": "u", "urll": "x"}]}))
+    assert validate({"mods": [{"id": "A", "slug": "a", "url": "u"}]}) == []
+    assert validate({"mods": [{"id": "A", "slug": "a"}]}) == ["mods[0] (A): missing url"]
+    assert any("duplicate id" in e for e in validate({"mods": [{"id": "A", "slug": "a", "url": "u"}] * 2}))
+    assert validate({"mods": [{"id": "A", "url": "u"}]}) == ["mods[0] (A): missing slug"]
+    assert any("bad slug" in e for e in validate({"mods": [{"id": "A", "slug": "Abc", "url": "u"}]}))
+    assert any("duplicate slug" in e for e in validate({"mods": [{"id": "A", "slug": "a", "url": "u"}, {"id": "B", "slug": "a", "url": "u"}]}))
+    assert any("regex" in e for e in validate({"mods": [{"id": "A", "url": "u", "slug": "a", "repo": "o/r", "asset": "("}]}))
+    assert any("unknown field" in e for e in validate({"mods": [{"id": "A", "url": "u", "slug": "a", "urll": "x"}]}))
 
     data = {"mods": [
         {"id": "A", "url": "https://dl/v1.0.0/Mod.zip", "repo": "o/a", "asset": r"^Mod\.zip$",

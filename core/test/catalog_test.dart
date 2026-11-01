@@ -1,0 +1,75 @@
+import 'dart:convert';
+
+import 'package:amm_core/amm_core.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:test/test.dart';
+
+ModlistMod theirs(String slug, {String summary = '', List<String> deps = const []}) =>
+    ModlistMod.fromJson({
+      'slug': slug,
+      'name': slug,
+      'summary': summary,
+      'dependencies': deps,
+    });
+
+void main() {
+  late http.Client saved;
+  setUp(() => saved = httpClient);
+  tearDown(() => httpClient = saved);
+
+  final ours = [
+    const Mod(id: 'Quartz', slug: 'quartz', url: 'u'),
+    const Mod(id: 'Old', slug: 'old', url: 'u', v2: false),
+  ];
+
+  test('ours wins on slug collision', () {
+    final c = Catalog.merge(ours, [theirs('quartz', summary: 'S'), theirs('x')]);
+    expect(c.entries.map((e) => e.slug), ['old', 'quartz', 'x']);
+    final q = c.find('quartz')!;
+    expect(q.source, Source.modsJson);
+    expect(q.name, 'Quartz');
+    expect(q.summary, 'S');
+    expect(q.theirs, isNotNull);
+    expect(c.find('x')!.source, Source.modlist);
+  });
+
+  test('find is case-insensitive', () {
+    expect(Catalog.merge(ours, []).find('Quartz')?.slug, 'quartz');
+  });
+
+  test('search matches summary', () {
+    final c = Catalog.merge(ours, [theirs('x', summary: 'Hello World')]);
+    expect(c.search('hello world').map((e) => e.slug), ['x']);
+    expect(c.search('').length, 3);
+  });
+
+  test('visibleOn hides v2:false on v2', () {
+    final c = Catalog.merge(ours, [theirs('x')]);
+    expect(c.find('old')!.visibleOn(true), false);
+    expect(c.find('old')!.visibleOn(false), true);
+    expect(c.find('old')!.visibleOn(null), true);
+    expect(c.find('x')!.visibleOn(true), true);
+  });
+
+  final modsJson = jsonEncode({
+    'mods': [
+      {'id': 'Quartz', 'slug': 'quartz', 'url': 'u'}
+    ]
+  });
+
+  test('Catalog.load keeps working when one source fails', () async {
+    httpClient = MockClient((req) async => req.url.host == 'modlist.org'
+        ? http.Response('x', 500)
+        : http.Response(modsJson, 200));
+    final c = await Catalog.load();
+    expect(c.entries.map((e) => e.slug), ['quartz']);
+    expect(c.warnings, hasLength(1));
+    expect(c.warnings.single, startsWith('modlist.org unreachable: '));
+  });
+
+  test('Catalog.load throws when both fail', () async {
+    httpClient = MockClient((req) async => http.Response('x', 500));
+    expect(Catalog.load(), throwsA(isA<ModRegistryException>()));
+  });
+}
