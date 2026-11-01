@@ -2,6 +2,7 @@
   "mods": [
     {
       "id": "AdofaiTweaks",
+      "slug": "adofaitweaks",
       "repo": "PizzaLovers007/AdofaiTweaks",
       "asset": "^AdofaiTweaks-.*\\.zip$",
       "url": "https://github.com/PizzaLovers007/AdofaiTweaks/releases/download/v2.9.3/AdofaiTweaks-2.9.3.zip",
@@ -9,6 +10,7 @@
     },
     {
       "id": "TUFHelper",
+      "slug": "tufhelper",
       "repo": "coyami-ke/TUFHelper",
       "asset": "(?i)^TUFHelper.*(osx|mac).*\\.zip$",
       "url": "https://github.com/coyami-ke/TUFHelper/releases/download/v3.1.1/TUFHelper.OSX.3.1.1.zip",
@@ -16,6 +18,7 @@
     },
     {
       "id": "Bismuth",
+      "slug": "bismuth",
       "repo": "PrismMods/Bismuth",
       "asset": "^Bismuth\\.zip$",
       "url": "https://github.com/PrismMods/Topaz/releases/download/v1.3.6/Bismuth.zip",
@@ -24,6 +27,7 @@
     },
     {
       "id": "Sapphire",
+      "slug": "sapphire",
       "repo": "PrismMods/Sapphire",
       "asset": "^Sapphire-.*\\.zip$",
       "prerelease": true,
@@ -33,6 +37,7 @@
     },
     {
       "id": "Quartz",
+      "slug": "quartz",
       "repo": "PrismMods/Quartz",
       "asset": "^QuartzUmm\\.zip$",
       "assetMelon": "^Quartz\\.zip$",
@@ -45,6 +50,7 @@
     },
     {
       "id": "JipperResourcePack",
+      "slug": "jrp",
       "repo": "Jongye0l/JipperResourcePack",
       "asset": "^JipperResourcePack\\.zip$",
       "url": "https://github.com/Jongye0l/JipperResourcePack/releases/download/v1.6.0.0/JipperResourcePack.zip",
@@ -53,11 +59,13 @@
     },
     {
       "id": "PACL2",
+      "slug": "pacl2",
       "url": "https://fixcdn.hyonsu.com/attachments/1447565645981155389/1520147803374878810/PACL2_v2.5.301.zip",
       "jalib": true
     },
     {
       "id": "TogetherBootstrap",
+      "slug": "togetherbootstrap",
       "repo": "fangshenghan/TogetherBootstrap-Mod",
       "asset": "^TogetherBootstrap.*\\.zip$",
       "url": "https://github.com/fangshenghan/TogetherBootstrap-Mod/releases/download/v1.5.5/TogetherBootstrap.v1.5.5.zip",
@@ -66,11 +74,13 @@
     },
     {
       "id": "YouTubeStream",
+      "slug": "youtubestream",
       "url": "https://bot.adofai.gg/api/mods/YoutubeStream?download=true",
       "urlV2": "https://fixcdn.hyonsu.com/attachments/886661471533162526/1343622558813130855/YouTubeStream-1.0.3.zip"
     },
     {
       "id": "KeyboardChatterBlocker",
+      "slug": "keyboardchatterblocker",
       "repo": "fangshenghan/KeyboardChatterBlocker",
       "asset": "^KeyboardChatterBlocker.*\\.zip$",
       "url": "https://github.com/fangshenghan/KeyboardChatterBlocker/releases/download/0.1.3/KeyboardChatterBlocker.v0.1.3.zip",
@@ -79,10 +89,12 @@
     },
     {
       "id": "KeyLimiter",
+      "slug": "keylimiter",
       "url": "https://fixcdn.hyonsu.com/attachments/886661471533162526/1512516444007698512/KeyLimiter.zip"
     },
     {
       "id": "EnhancedEffectRemover",
+      "slug": "enhancedeffectremover",
       "repo": "WsbiMango/EnhancedEffectRemover",
       "asset": "^EnhancedEffectRemover_.*\\.zip$",
       "repoMelon": "KkitutLab/EnhancedEffectRemover",
@@ -94,6 +106,7 @@
     },
     {
       "id": "XPerfect",
+      "slug": "xperfect",
       "repo": "8100print/XPerfect",
       "asset": "^XPerfect\\.zip$",
       "url": "https://github.com/8100print/XPerfect/releases/download/3.0.0/XPerfect.zip",
@@ -102,11 +115,13 @@
     },
     {
       "id": "DesyncFix",
+      "slug": "desyncfix",
       "url": "https://fixcdn.hyonsu.com/attachments/886661471533162526/1045847555440910406/DesyncFix-0.0.6.zip",
       "v3": false
     },
     {
       "id": "BetterCalibration",
+      "slug": "bettercalibration",
       "url": "https://jalib.jongyeol.kr/modApplicator/BetterCalibration/1.2.1.0",
       "v2": false,
       "jalib": true

@@ -39,6 +39,8 @@ dependencies:
   http: ^1.2.0
   path: ^1.9.0
   archive: ^4.0.0
+  amm_core:
+    path: ../core
 
 dev_dependencies:
   flutter_test:

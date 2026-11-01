@@ -1,9 +1,10 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'net.dart';
 
 /// A mod entry from mods.json, mirroring the macOS app's `Mod`.
 class Mod {
   final String id;
+  final String slug; // lowercase handle used on the command line
   final String url;
   final String? urlV2; // download for the v2.x build (falls back to url)
   final String? urlMelon; // download to use when the loader is MelonLoader
@@ -11,9 +12,12 @@ class Mod {
   final bool v3; // available on the v3.x+ (Unity 6) build
   final bool jalib; // depends on JALib (currently broken — hidden, banner shown)
   final String? install; // special install handler key (e.g. "quartz")
+  final String? version; // newest version of `url`, when the bot tracks it
+  final String? versionMelon; // same for `urlMelon`
 
   const Mod({
     required this.id,
+    required this.slug,
     required this.url,
     this.urlV2,
     this.urlMelon,
@@ -21,10 +25,13 @@ class Mod {
     this.v3 = true,
     this.jalib = false,
     this.install,
+    this.version,
+    this.versionMelon,
   });
 
   factory Mod.fromJson(Map<String, dynamic> j) => Mod(
         id: j['id'] as String,
+        slug: j['slug'] as String? ?? (j['id'] as String).toLowerCase(),
         url: j['url'] as String,
         urlV2: j['urlV2'] as String?,
         urlMelon: j['urlMelon'] as String?,
@@ -32,12 +39,21 @@ class Mod {
         v3: j['v3'] as bool? ?? true,
         jalib: j['jalib'] as bool? ?? false,
         install: j['install'] as String?,
+        version: j['version'] as String?,
+        versionMelon: j['versionMelon'] as String?,
       );
 
   String resolvedUrl({required bool isGameV2, required bool isMelonLoader}) {
     if (isMelonLoader && urlMelon != null) return urlMelon!;
     if (isGameV2 && urlV2 != null) return urlV2!;
     return url;
+  }
+
+  /// Version matching [resolvedUrl]; null for a `urlV2` pin, which isn't tracked.
+  String? resolvedVersion({required bool isGameV2, required bool isMelonLoader}) {
+    if (isMelonLoader && urlMelon != null) return versionMelon;
+    if (isGameV2 && urlV2 != null) return null;
+    return version;
   }
 }
 
@@ -57,7 +73,7 @@ class ModRegistry {
   /// Fetches the mod list from the repo. Throws on any network/decode failure
   /// so the caller can surface the error rather than masking it.
   static Future<List<Mod>> fetch() async {
-    final resp = await http
+    final resp = await httpClient
         .get(Uri.parse(registryUrl))
         .timeout(const Duration(seconds: 8));
     if (resp.statusCode >= 400) {

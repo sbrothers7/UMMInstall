@@ -11,6 +11,30 @@ A native macOS installer for [Unity Mod Manager](https://www.nexusmods.com/site/
 
 https://github.com/sbrothers7/UMMInstall/releases/latest
 
+## Command line (amm)
+
+```
+curl -fsSL https://raw.githubusercontent.com/sbrothers7/UMMInstall/main/cli/install.sh | bash
+```
+
+| Command | What it does |
+|---|---|
+| `amm install` | Install the default loader (or show what is installed) |
+| `amm install --ml` / `--native` / `--rosetta` | Install MelonLoader / UMM native / UMM Rosetta |
+| `amm reinstall` | Reinstall the current loader |
+| `amm reinstall --<method>` | Reinstall with another method |
+| `amm uninstall` | Remove the loader |
+| `amm default [method]` | Show or set the default loader |
+| `amm list` / `-l` | List installed mods |
+| `amm search <text>` / `-s` | Search the mod list |
+| `amm modinstall <mod>` / `mi` | Install a mod |
+| `amm mr <mod>` (`--keep`) | Remove a mod (`--keep` keeps its settings) |
+| `amm upgrade` | Upgrade all installed mods |
+| `amm upgrade <slug>` | Upgrade one mod |
+
+`ammtui` opens the interactive menu. Add `-y` to skip confirmations. On Linux (x64), only the native build with MelonLoader is supported.
+
+
 ## Requirements
 
 - macOS 13+
