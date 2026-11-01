@@ -1,16 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:amm_core/amm_core.dart';
 import 'package:path/path.dart' as p;
 
 import 'models.dart';
-import 'mod_registry.dart';
 import 'updater.dart';
-import 'install/install_scripts.dart';
-import 'install/script_runner.dart';
-import 'install/mod_downloader.dart';
-import 'platform/game_paths.dart';
-import 'platform/steam_config.dart';
 
 /// App-wide state + actions, ported from the macOS `InstallerViewModel`.
 class AppState extends ChangeNotifier {

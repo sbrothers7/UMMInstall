@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
 import '../mod_registry.dart';
+import '../net.dart';
 
 class ModDownloadException implements Exception {
   final String message;
@@ -113,24 +114,19 @@ class ModDownloader {
   /// doesn't send a Content-Length.
   static Future<Uint8List> _download(
       String url, void Function(double)? onProgress) async {
-    final client = http.Client();
-    try {
-      final resp = await client.send(http.Request('GET', Uri.parse(url)));
-      if (resp.statusCode >= 400) {
-        throw ModDownloadException('HTTP ${resp.statusCode}');
-      }
-      final total = resp.contentLength ?? 0;
-      final builder = BytesBuilder(copy: false);
-      var received = 0;
-      await for (final chunk in resp.stream) {
-        builder.add(chunk);
-        received += chunk.length;
-        if (total > 0 && onProgress != null) onProgress(received / total);
-      }
-      return builder.takeBytes();
-    } finally {
-      client.close();
+    final resp = await httpClient.send(http.Request('GET', Uri.parse(url)));
+    if (resp.statusCode >= 400) {
+      throw ModDownloadException('HTTP ${resp.statusCode}');
     }
+    final total = resp.contentLength ?? 0;
+    final builder = BytesBuilder(copy: false);
+    var received = 0;
+    await for (final chunk in resp.stream) {
+      builder.add(chunk);
+      received += chunk.length;
+      if (total > 0 && onProgress != null) onProgress(received / total);
+    }
+    return builder.takeBytes();
   }
 
   /// Moves each top-level child of [src] into [dst], replacing existing entries.

@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'net.dart';
 
 /// A mod entry from mods.json, mirroring the macOS app's `Mod`.
 class Mod {
@@ -57,7 +57,7 @@ class ModRegistry {
   /// Fetches the mod list from the repo. Throws on any network/decode failure
   /// so the caller can surface the error rather than masking it.
   static Future<List<Mod>> fetch() async {
-    final resp = await http
+    final resp = await httpClient
         .get(Uri.parse(registryUrl))
         .timeout(const Duration(seconds: 8));
     if (resp.statusCode >= 400) {

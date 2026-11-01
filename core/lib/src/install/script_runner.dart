@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
 import '../models.dart';
+import '../net.dart';
 
 /// Downloads a per-OS install script and runs it, streaming its output into the
 /// log. Mirrors the macOS app's ScriptRunner: scripts emit `info:`/`ok:`/
@@ -24,7 +24,7 @@ class ScriptRunner {
 
     try {
       final resp =
-          await http.get(Uri.parse(url)).timeout(const Duration(seconds: 20));
+          await httpClient.get(Uri.parse(url)).timeout(const Duration(seconds: 20));
       if (resp.statusCode >= 400) {
         onLog(LogLevel.error, 'Failed to download script (HTTP ${resp.statusCode}).');
         return -1;

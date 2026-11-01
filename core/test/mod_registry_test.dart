@@ -1,6 +1,6 @@
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
-import 'package:adofai_mod_installer/src/mod_registry.dart';
+import 'package:amm_core/amm_core.dart';
 
 void main() {
   test('Mod.resolvedUrl prefers MelonLoader, then v2, then default', () {

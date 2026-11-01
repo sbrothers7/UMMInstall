@@ -1,8 +1,8 @@
 import 'dart:io';
 
-import 'package:adofai_mod_installer/src/install/mod_downloader.dart';
+import 'package:amm_core/amm_core.dart';
 import 'package:archive/archive.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:path/path.dart' as p;
 
 List<int> zip(Map<String, String> files) {
