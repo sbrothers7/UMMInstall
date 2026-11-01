@@ -47,6 +47,8 @@ jobs:
           files: gui/ADOFAIModInstaller-*.zip
 
   cli:
+    # The GUI job creates the release; attaching in parallel races it.
+    needs: build
     strategy:
       fail-fast: false
       matrix:
