@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
@@ -23,7 +24,8 @@ class ModDownloader {
   /// is merged there rather than wrapped as a single mod folder.
   static const _gameRootDirs = {'Mods', 'Plugins', 'UserData', 'UserLibs'};
 
-  static Future<void> install({
+  /// Downloads and places [mod]; returns the absolute paths it placed.
+  static Future<List<String>> install({
     required Mod mod,
     required bool isGameV2,
     required bool isMelonLoader,
@@ -32,16 +34,19 @@ class ModDownloader {
     void Function(double fraction)? onProgress,
   }) async {
     final url = mod.resolvedUrl(isGameV2: isGameV2, isMelonLoader: isMelonLoader);
-    final bodyBytes = await _download(url, onProgress);
-    installBytes(bodyBytes, modId: mod.id, gameRoot: gameRoot, modsDir: modsDir);
+    final bodyBytes = await download(url, onProgress: onProgress);
+    return installBytes(bodyBytes, modId: mod.id, gameRoot: gameRoot, modsDir: modsDir);
   }
 
-  /// Extracts a downloaded zip and places it. Split from [install] for tests.
-  static void installBytes(
+  /// Extracts a downloaded zip and places it, returning the absolute path of
+  /// each top-level item placed. Split from [install] for tests. With
+  /// [melonNative], loose files go straight into [modsDir] instead of a folder.
+  static List<String> installBytes(
     List<int> bodyBytes, {
     required String modId,
     required String gameRoot,
     required String modsDir,
+    bool melonNative = false,
   }) {
     final tmp = Directory(
         p.join(Directory.systemTemp.path, 'adofai_extract_$modId'));
@@ -79,10 +84,10 @@ class ModDownloader {
           _gameRootDirs.contains(n) &&
           Directory(p.join(tmp.path, n)).existsSync());
       if (rootDirs.isNotEmpty) {
-        for (final d in rootDirs) {
-          _merge(p.join(tmp.path, d), p.join(gameRoot, d));
-        }
-        return;
+        return [
+          for (final d in rootDirs)
+            ..._merge(p.join(tmp.path, d), p.join(gameRoot, d)),
+        ];
       }
 
       Directory(modsDir).createSync(recursive: true);
@@ -91,7 +96,15 @@ class ModDownloader {
       if (visible.length == 1 &&
           Directory(p.join(tmp.path, visible.first)).existsSync()) {
         ModStore.moveEntity(p.join(tmp.path, visible.first), p.join(modsDir, visible.first));
-        return;
+        return [p.join(modsDir, visible.first)];
+      }
+
+      // Loose files for a MelonLoader-native mod → straight into the mods dir.
+      if (melonNative) {
+        for (final item in visible) {
+          ModStore.moveEntity(p.join(tmp.path, item), p.join(modsDir, item));
+        }
+        return [for (final item in visible) p.join(modsDir, item)];
       }
 
       // Loose files → wrap them in a folder named after the mod.
@@ -101,6 +114,7 @@ class ModDownloader {
       for (final item in visible) {
         ModStore.moveEntity(p.join(tmp.path, item), p.join(dest, item));
       }
+      return [dest];
     } finally {
       if (tmp.existsSync()) {
         try {
@@ -112,12 +126,19 @@ class ModDownloader {
 
   /// Streams the download so we can report progress. Falls back to an
   /// indeterminate bar (onProgress never reports a fraction) when the server
-  /// doesn't send a Content-Length.
-  static Future<Uint8List> _download(
-      String url, void Function(double)? onProgress) async {
+  /// doesn't send a Content-Length. An error body's `statusMessage` (as
+  /// modlist.org sends) is added to the exception.
+  static Future<Uint8List> download(String url,
+      {void Function(double)? onProgress}) async {
     final resp = await httpClient.send(http.Request('GET', Uri.parse(url)));
     if (resp.statusCode >= 400) {
-      throw ModDownloadException('HTTP ${resp.statusCode}');
+      String? msg;
+      try {
+        msg = (jsonDecode(await resp.stream.bytesToString())
+            as Map<String, dynamic>)['statusMessage'] as String?;
+      } catch (_) {}
+      throw ModDownloadException(
+          'HTTP ${resp.statusCode}${msg == null ? '' : ': $msg'}');
     }
     final total = resp.contentLength ?? 0;
     final builder = BytesBuilder(copy: false);
@@ -130,13 +151,17 @@ class ModDownloader {
     return builder.takeBytes();
   }
 
-  /// Moves each top-level child of [src] into [dst], replacing existing entries.
-  static void _merge(String src, String dst) {
+  /// Moves each top-level child of [src] into [dst], replacing existing entries;
+  /// returns the destination paths.
+  static List<String> _merge(String src, String dst) {
     Directory(dst).createSync(recursive: true);
+    final placed = <String>[];
     for (final entity in Directory(src).listSync()) {
       final name = p.basename(entity.path);
       if (name.startsWith('.')) continue;
       ModStore.moveEntity(entity.path, p.join(dst, name));
+      placed.add(p.join(dst, name));
     }
+    return placed;
   }
 }

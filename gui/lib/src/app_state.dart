@@ -351,6 +351,7 @@ class AppState extends ChangeNotifier {
     final melon = hasMelonLoader;
     final modsDir = modsInstallPath;
     final failed = <String>[];
+    final recorded = <String, RecordEntry>{};
     for (var i = 0; i < selected.length; i++) {
       final mod = selected[i];
       // A live progress-bar log row that morphs into the result line when done.
@@ -365,7 +366,7 @@ class AppState extends ChangeNotifier {
 
       var lastPct = -1;
       try {
-        await ModDownloader.install(
+        final placed = await ModDownloader.install(
           mod: mod,
           isGameV2: isGameV2,
           isMelonLoader: melon,
@@ -380,6 +381,14 @@ class AppState extends ChangeNotifier {
             }
           },
         );
+        recorded[mod.slug] = RecordEntry(
+          source: 'mods.json',
+          version: mod.resolvedVersion(isGameV2: isGameV2, isMelonLoader: melon),
+          paths: [
+            for (final path in placed)
+              p.relative(path, from: GamePaths.gamePath).replaceAll(r'\', '/'),
+          ],
+        );
         entry
           ..progress = null
           ..level = LogLevel.ok
@@ -392,6 +401,16 @@ class AppState extends ChangeNotifier {
           ..message = t('${mod.id} failed to install.', '${mod.id} 설치 실패.');
         log(LogLevel.detail, e.toString());
         failed.add(mod.id);
+      }
+    }
+    if (recorded.isNotEmpty) {
+      try {
+        final root = GamePaths.gamePath;
+        final rec = AmmRecord.load(root);
+        rec.mods.addAll(recorded);
+        rec.save(root);
+      } catch (e) {
+        log(LogLevel.detail, e.toString());
       }
     }
 
@@ -531,10 +550,14 @@ class AppState extends ChangeNotifier {
   // MARK: - Helpers
 
   void _recordMethod(Method? m) {
-    final root = GamePaths.gamePath;
-    AmmRecord.load(root)
-      ..method = m
-      ..save(root);
+    try {
+      final root = GamePaths.gamePath;
+      AmmRecord.load(root)
+        ..method = m
+        ..save(root);
+    } catch (e) {
+      log(LogLevel.detail, e.toString());
+    }
   }
 
   void _applyLaunchOptions() {
