@@ -43,10 +43,4 @@ void main() {
   test('help exits 0', () async {
     expect((await run(['help'])).$1, 0);
   });
-
-  test('unimplemented command is stubbed', () async {
-    final (code, text) = await run(['tui']);
-    expect(code, 1);
-    expect(text, contains('tui: not implemented yet'));
-  });
 }

@@ -25,8 +25,9 @@ class Config {
   static Config load({Map<String, String>? env}) {
     final c = Config().._env = env;
     try {
-      final j = jsonDecode(File(path(env: env)).readAsStringSync())
-          as Map<String, dynamic>;
+      final j =
+          jsonDecode(File(path(env: env)).readAsStringSync())
+              as Map<String, dynamic>;
       c.defaultMethod = Method.parse(j['default'] as String) ?? Method.ml;
     } catch (_) {}
     return c;

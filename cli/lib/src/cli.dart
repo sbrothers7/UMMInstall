@@ -6,6 +6,7 @@ import 'package:args/args.dart';
 import 'context.dart';
 import 'loader_commands.dart';
 import 'mod_commands.dart';
+import 'tui.dart';
 
 const _usage = '''
 Usage: amm <command> [options]
@@ -124,12 +125,7 @@ Future<int> runCli(List<String> argv, {Ctx Function(bool yes)? makeCtx}) async {
     ),
     'mr' => remove(c, cmd.rest, keep: cmd['keep'] as bool),
     'upgrade' => upgrade(c, cmd.rest),
-    _ => _notImplemented(c, name),
+    'tui' => runTui(c),
+    _ => usageError('Unknown command "$name".'),
   };
-}
-
-// Task 10 replaces this.
-Future<int> _notImplemented(Ctx c, String name) async {
-  c.out.line('$name: not implemented yet');
-  return 1;
 }

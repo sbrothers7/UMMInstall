@@ -18,7 +18,11 @@ void main() {
   });
 
   test('confirm rejects anything else', () {
-    final out = Out(sink: StringBuffer(), interactive: true, readLine: () => '');
+    final out = Out(
+      sink: StringBuffer(),
+      interactive: true,
+      readLine: () => '',
+    );
     expect(out.confirm('Sure?', yes: false), isFalse);
   });
 
