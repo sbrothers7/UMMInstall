@@ -7,6 +7,7 @@ import 'context.dart';
 import 'loader_commands.dart';
 import 'mod_commands.dart';
 import 'tui.dart';
+import 'update_command.dart';
 
 const _usage = '''
 Usage: amm <command> [options]
@@ -16,11 +17,13 @@ Commands:
   reinstall [--ml|--native|--rosetta]   Reinstall the loader
   uninstall                             Remove the loader
   default [ml|native|rosetta]           Show or set the default method
+  status                                Show the game, loader and mods
   list (-l)                             List installed mods
-  search (-s) <query>                   Search the mod catalog
+  search (-s) [<query>]                 Search the mod catalog (all if no query)
   modinstall (mi) <slug>...             Install mods
   mr <name>... [--keep]                 Remove mods
   upgrade [<name>...]                   Upgrade mods
+  update                                Update amm, ammtui and the GUI app
   tui                                   Interactive mode
   help                                  Show this help
 
@@ -58,11 +61,13 @@ ArgParser _parser() {
     ..addCommand('reinstall', cmd(_methodFlags))
     ..addCommand('uninstall', cmd())
     ..addCommand('default', cmd())
+    ..addCommand('status', cmd())
     ..addCommand('list', cmd())
     ..addCommand('search', cmd())
     ..addCommand('modinstall', cmd())
     ..addCommand('mr', cmd(['keep']))
     ..addCommand('upgrade', cmd())
+    ..addCommand('update', cmd())
     ..addCommand('tui', cmd())
     ..addCommand('help', cmd());
 }
@@ -113,10 +118,8 @@ Future<int> runCli(List<String> argv, {Ctx Function(bool yes)? makeCtx}) async {
       'reinstall' => reinstall(c, method: method),
       'uninstall' => uninstall(c),
       'default' => setDefault(c, cmd.rest.firstOrNull),
+      'status' => status(c),
       'list' => list(c),
-      'search' when cmd.rest.isEmpty => Future.value(
-        usageError('search needs a query.'),
-      ),
       'search' => search(c, cmd.rest.join(' ')),
       'modinstall' when cmd.rest.isEmpty => Future.value(
         usageError('modinstall needs at least one mod.'),
@@ -127,6 +130,7 @@ Future<int> runCli(List<String> argv, {Ctx Function(bool yes)? makeCtx}) async {
       ),
       'mr' => remove(c, cmd.rest, keep: cmd['keep'] as bool),
       'upgrade' => upgrade(c, cmd.rest),
+      'update' => update(c),
       'tui' => runTui(c),
       _ => usageError('Unknown command "$name".'),
     };

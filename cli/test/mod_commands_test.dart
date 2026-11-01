@@ -89,6 +89,7 @@ void main() {
         summary: 'nice',
         version: '1.0',
         loaders: {'melonloader'},
+        gameVersions: ['3.4.0'],
       ),
     ],
     ['modlist.org unreachable: x'],
@@ -99,16 +100,17 @@ void main() {
     expect(env.sink.toString(), contains('[broken: needs JALib]'));
   });
 
-  test(
-    'search prints warnings, loaders, and hides wrong-version mods',
-    () async {
-      expect(await search(ctx(facts(), catalog: cat()), ''), 0);
-      final s = env.sink.toString();
-      expect(s, contains('modlist.org unreachable: x'));
-      expect(s, contains('good  1.0  mods.json  ml  Good — nice'));
-      expect(s, isNot(contains('onlyv2')));
-    },
-  );
+  test('search with no query lists every mod with versions and game versions, '
+      'hiding wrong-version mods', () async {
+    expect(await search(ctx(facts(), catalog: cat()), ''), 0);
+    expect(env.sink.toString().split('\n'), [
+      'modlist.org unreachable: x',
+      'SLUG  VERSION  GAME      LOADERS  SOURCE     NAME',
+      'bad   -        2.x, 3.x  any      mods.json  Bad  [broken: needs JALib]',
+      'good  1.0      3.4.0     ml       mods.json  Good — nice',
+      '',
+    ]);
+  });
 
   test('search with no match', () async {
     expect(await search(ctx(facts(), catalog: cat()), 'zzz'), 0);

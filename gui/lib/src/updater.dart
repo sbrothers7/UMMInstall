@@ -1,9 +1,7 @@
-import 'dart:convert';
 import 'dart:io';
+import 'package:amm_core/amm_core.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
-
-import 'version.dart';
 
 class LatestRelease {
   final String tag;
@@ -18,61 +16,33 @@ class LatestRelease {
 /// The Windows/Linux paths are wired but want real-world testing once the
 /// per-platform packaging (release artifacts) is finalized.
 class Updater {
-  static const repo = 'sbrothers7/UMMInstall';
-
   static String get currentVersion => appVersion;
 
   static Future<LatestRelease?> fetchLatest() async {
     try {
-      final resp = await http
-          .get(
-            Uri.parse('https://api.github.com/repos/$repo/releases/latest'),
-            headers: {'Accept': 'application/vnd.github+json'},
-          )
-          .timeout(const Duration(seconds: 8));
-      if (resp.statusCode >= 400) return null;
-      final j = jsonDecode(resp.body) as Map<String, dynamic>;
-      final tag = j['tag_name'] as String?;
-      if (tag == null) return null;
-      final asset = _selectAsset((j['assets'] as List?) ?? const []);
-      if (asset == null) return null;
-      return LatestRelease(tag, asset);
+      final r = await GithubRelease.latest();
+      final asset = _selectAsset(r.assets);
+      return asset == null ? null : LatestRelease(r.tag, asset);
     } catch (_) {
       return null;
     }
   }
 
   /// Picks the .zip asset matching this platform (falls back to the first .zip).
-  static String? _selectAsset(List assets) {
+  static String? _selectAsset(Map<String, String> assets) {
     final keys = Platform.isMacOS
         ? const ['macos', 'mac', 'darwin', 'osx']
         : Platform.isWindows
             ? const ['windows', 'win']
             : const ['linux'];
     String? firstZip;
-    for (final a in assets) {
-      final name = (a['name'] as String? ?? '').toLowerCase();
+    for (final MapEntry(key: n, value: url) in assets.entries) {
+      final name = n.toLowerCase();
       if (!name.endsWith('.zip')) continue;
-      firstZip ??= a['browser_download_url'] as String?;
-      if (keys.any(name.contains)) return a['browser_download_url'] as String?;
+      firstZip ??= url;
+      if (keys.any(name.contains)) return url;
     }
     return firstZip;
-  }
-
-  static bool isNewer(String remote, String local) {
-    List<int> parts(String s) => s
-        .replaceAll(RegExp(r'^[vV\s]+'), '')
-        .split('.')
-        .map((e) => int.tryParse(RegExp(r'^\d+').stringMatch(e) ?? '') ?? 0)
-        .toList();
-    final r = parts(remote), l = parts(local);
-    final n = r.length > l.length ? r.length : l.length;
-    for (var i = 0; i < n; i++) {
-      final a = i < r.length ? r[i] : 0;
-      final b = i < l.length ? l[i] : 0;
-      if (a != b) return a > b;
-    }
-    return false;
   }
 
   /// The install root to replace: the `.app` on macOS, the executable's

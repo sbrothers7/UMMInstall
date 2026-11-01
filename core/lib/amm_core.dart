@@ -10,5 +10,7 @@ export 'src/mod_store.dart';
 export 'src/models.dart';
 export 'src/net.dart';
 export 'src/record.dart';
+export 'src/release.dart';
 export 'src/platform/game_paths.dart';
 export 'src/platform/steam_config.dart';
+export 'src/version.dart';

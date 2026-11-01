@@ -67,7 +67,8 @@ List<String> _table(List<List<String>> rows) {
   ];
 }
 
-/// `amm search <query>`: the one command here that uses the network.
+/// `amm search [<query>]`: the one command here that uses the network. An
+/// empty query lists every mod.
 Future<int> search(Ctx c, String query) async {
   final cat = await c.catalog();
   for (final w in cat.warnings) {
@@ -82,23 +83,41 @@ Future<int> search(Ctx c, String query) async {
     c.out.line('No mods match "$query".');
     return 0;
   }
-  for (final e in hits) {
-    final l = e.theirs?.loaders ?? const <String>{};
-    final loaders = l.isEmpty
-        ? 'any'
-        : [
-            if (l.contains('melonloader')) 'ml',
-            if (l.contains('umm')) 'umm',
-          ].join(',');
-    final version = e.theirs?.version ?? e.ours?.version ?? '-';
-    final summary = e.summary.isEmpty ? '' : ' — ${e.summary}';
-    c.out.line(
-      '${e.slug}  $version  ${e.source.label}  $loaders  '
-      '${e.name}$summary${e.jalib ? '  [broken: needs JALib]' : ''}',
-    );
+  for (final line in catalogTable(hits)) {
+    c.out.line(line);
   }
   return 0;
 }
+
+/// [entries] as aligned lines under a header line, as `amm search` prints them.
+List<String> catalogTable(List<CatalogEntry> entries) => _table([
+  ['SLUG', 'VERSION', 'GAME', 'LOADERS', 'SOURCE', 'NAME'],
+  for (final e in entries) _searchRow(e),
+]);
+
+List<String> _searchRow(CatalogEntry e) {
+  final l = e.theirs?.loaders ?? const <String>{};
+  final loaders = l.isEmpty
+      ? 'any'
+      : [
+          if (l.contains('melonloader')) 'ml',
+          if (l.contains('umm')) 'umm',
+        ].join(',');
+  final games = e.gameVersions;
+  return [
+    e.slug,
+    e.theirs?.version ?? e.ours?.version ?? '-',
+    games.isEmpty ? '-' : games.join(', '),
+    loaders,
+    e.source.label,
+    describe(e),
+  ];
+}
+
+/// The mod's name and summary, flagged when it can't work.
+String describe(CatalogEntry e) =>
+    '${e.name}${e.summary.isEmpty ? '' : ' — ${e.summary}'}'
+    '${e.jalib ? '  [broken: needs JALib]' : ''}';
 
 /// Where [f]'s game takes mods.
 ModTarget targetFor(GameFacts f) => ModTarget(

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:amm_core/amm_core.dart';
 import 'package:path/path.dart' as p;
@@ -10,6 +11,7 @@ import 'loader_commands.dart';
 import 'mod_commands.dart';
 
 enum MenuAction {
+  status('Show status', 'S'),
   install('Install loader', 'i'),
   reinstall('Reinstall loader', 'R'),
   uninstall('Uninstall loader', 'U'),
@@ -74,12 +76,20 @@ class MenuState {
 class PickerState {
   final List<String> rows;
   final bool multi;
+  final String? header; // column titles, lined up above the rows
+  final List<String>? details; // one per row, shown for the highlighted one
   int cursor;
+  int top = 0; // first row on screen
   final Set<int> chosen;
 
-  PickerState(this.rows, {this.multi = false, Set<int> preselected = const {}})
-    : chosen = {...preselected},
-      cursor = !multi && preselected.isNotEmpty ? preselected.first : 0;
+  PickerState(
+    this.rows, {
+    this.multi = false,
+    this.header,
+    this.details,
+    Set<int> preselected = const {},
+  }) : chosen = {...preselected},
+       cursor = !multi && preselected.isNotEmpty ? preselected.first : 0;
 
   bool? handle(String key) {
     if (key == _up) cursor = (cursor - 1) % rows.length;
@@ -90,15 +100,38 @@ class PickerState {
     return null;
   }
 
-  String render(String title) {
-    final b = StringBuffer('$title\n\n');
-    for (var i = 0; i < rows.length; i++) {
-      final box = multi ? (chosen.contains(i) ? '[x] ' : '[ ] ') : '';
-      b.writeln('${i == cursor ? '> ' : '  '}$box${rows[i]}');
-    }
-    final hint = multi ? 'space toggle · enter confirm' : 'enter select';
-    b.write('\n↑↓ move · $hint · q cancel');
-    return b.toString();
+  /// Fits a [lines] x [cols] screen: the rows scroll to keep the cursor on
+  /// it and long lines are cut.
+  String render(String title, {int lines = 1 << 30, int cols = 1 << 30}) {
+    final head = [
+      ...title.split('\n'),
+      '',
+      if (header != null) '${multi ? '      ' : '  '}$header',
+    ];
+    final detail = details?[cursor];
+    // The blank line, the detail and the hint take the rest.
+    final room = max(1, lines - head.length - (detail == null ? 2 : 3));
+    if (cursor < top) top = cursor;
+    if (cursor >= top + room) top = cursor - room + 1;
+    final hint = [
+      '↑↓ move',
+      multi ? 'space toggle · enter confirm' : 'enter select',
+      'q cancel',
+      if (rows.length > room) '${cursor + 1}/${rows.length}',
+    ].join(' · ');
+    return [
+          ...head,
+          for (var i = top; i < min(rows.length, top + room); i++)
+            '${i == cursor ? '> ' : '  '}'
+                '${multi ? (chosen.contains(i) ? '[x] ' : '[ ] ') : ''}${rows[i]}',
+          '',
+          ?detail,
+          hint,
+        ]
+        .map(
+          (l) => l.length < cols ? l : '${l.substring(0, max(0, cols - 2))}…',
+        )
+        .join('\n');
   }
 }
 
@@ -182,10 +215,20 @@ class _Terminal {
 
   void draw(String s) => stdout.write('\x1b[2J\x1b[H$s');
 
+  /// The window size; 24x80 when there is none (e.g. under `script`).
+  ({int lines, int cols}) size() {
+    try {
+      return (lines: stdout.terminalLines, cols: stdout.terminalColumns);
+    } on StdoutException {
+      return (lines: 24, cols: 80);
+    }
+  }
+
   /// Draws [s] and returns the keys given to it until [done] says stop.
   Future<bool> pick(PickerState st, String title) async {
     while (true) {
-      draw(st.render(title));
+      final s = size();
+      draw(st.render(title, lines: s.lines, cols: s.cols));
       final r = st.handle(await key());
       if (r != null) return r;
     }
@@ -229,13 +272,7 @@ Future<int> runTui(Ctx c) async {
       _loaderLabel(facts.loader),
       'default: ${c.config.defaultMethod.name}',
     ].join(' · ');
-    var cols = 80;
-    try {
-      cols = stdout.terminalColumns;
-    } on StdoutException {
-      // no window size (e.g. under `script`); keep 80
-    }
-    final pad = cols - left.length - right.length;
+    final pad = t.size().cols - left.length - right.length;
     t.draw(
       menu.render(
         header: '$left${' ' * (pad < 2 ? 2 : pad)}$right',
@@ -294,11 +331,15 @@ Future<int> runTui(Ctx c) async {
     List<String> rows,
     List<String> ids, {
     bool all = false,
+    String? header,
+    List<String>? details,
   }) async {
     if (rows.isEmpty) return null;
     final st = PickerState(
       rows,
       multi: true,
+      header: header,
+      details: details,
       preselected: all ? {for (var i = 0; i < rows.length; i++) i} : const {},
     );
     if (!await t.pick(st, title) || st.chosen.isEmpty) return null;
@@ -325,16 +366,17 @@ Future<int> runTui(Ctx c) async {
             _ => setDefault(c, method.name),
           },
         );
+      case MenuAction.status:
+        await run(() => status(c));
       case MenuAction.uninstall:
         await run(() => uninstall(c));
       case MenuAction.list:
         await run(() => list(c));
       case MenuAction.search:
         final q = await t.cookedFor(() async {
-          stdout.write('Search: ');
+          stdout.write('Search (enter for all): ');
           return stdin.readLineSync()?.trim() ?? '';
         });
-        if (q.isEmpty) return;
         t.draw('Searching...');
         final List<CatalogEntry> hits;
         try {
@@ -353,14 +395,13 @@ Future<int> runTui(Ctx c) async {
           await say('No mods match "$q".');
           break;
         }
+        final table = catalogTable(hits);
         final slugs = await pickMany(
           'Install which?',
-          [
-            for (final e in hits)
-              '${e.slug}  ${e.theirs?.version ?? e.ours?.version ?? '-'}  '
-                  '${e.name}${e.jalib ? '  [broken]' : ''}',
-          ],
+          table.sublist(1),
           [for (final e in hits) e.slug],
+          header: table.first,
+          details: [for (final e in hits) describe(e)],
         );
         if (slugs == null) return;
         await run(() => modinstall(c, slugs));

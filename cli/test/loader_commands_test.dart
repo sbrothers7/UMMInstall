@@ -29,6 +29,43 @@ void main() {
     expect(s, isNot(contains('amm reinstall')));
   });
 
+  test('status shows the loader and mod counts and changes nothing', () async {
+    final game = env.game.path;
+    Directory('$game/Mods/Alpha').createSync(recursive: true);
+    File('$game/UMMMods/Beta.dll')
+      ..parent.createSync(recursive: true)
+      ..writeAsStringSync('x');
+    File('$game/.adofai-archive/k/_archive.json')
+      ..parent.createSync(recursive: true)
+      ..writeAsStringSync(
+        jsonEncode({'name': 'K', 'origin': '/o', 'payload': 'p'}),
+      );
+    final f = env.facts(loader: LoaderKind.melonLoader);
+    expect(await status(env.ctx(facts: f)), 0);
+    expect(env.calls, isEmpty);
+    expect(env.httpCalls, 0);
+    final s = env.sink.toString();
+    expect(s, contains('Game:           $game'));
+    expect(s, contains('Loader:         MelonLoader (ml)'));
+    expect(s, contains('Mods:           2 installed, 1 archived'));
+  });
+
+  test('status without a loader says none', () async {
+    expect(await status(env.ctx()), 0);
+    final s = env.sink.toString();
+    expect(s, matches(RegExp(r'Loader: +none\n')));
+    expect(s, matches(RegExp(r'Mods: +0 installed\n')));
+  });
+
+  test('status without a game exits 1', () async {
+    final f = env.facts(found: false, gamePath: '/nope');
+    expect(await status(env.ctx(facts: f)), 1);
+    expect(
+      env.sink.toString(),
+      contains('ADOFAI not found (looked in /nope).'),
+    );
+  });
+
   test('install --native with a different loader suggests reinstall', () async {
     final f = env.facts(loader: LoaderKind.melonLoader);
     expect(await install(env.ctx(facts: f), method: Method.native), 0);

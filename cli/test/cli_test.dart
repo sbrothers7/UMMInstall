@@ -33,6 +33,17 @@ void main() {
     expect((await run(['install', '--ml', '--native'])).$1, 2);
   });
 
+  test('search without a query is allowed', () async {
+    expect((await run(['search'])).$1, 0);
+    expect((await run(['-s'])).$1, 0);
+  });
+
+  test('status runs without a game and exits 1', () async {
+    final (code, out) = await run(['status']);
+    expect(code, 1);
+    expect(out, contains('ADOFAI not found (looked in /nope).'));
+  });
+
   test('unknown command exits 2', () async {
     expect((await run(['frobnicate'])).$1, 2);
   });

@@ -25,12 +25,14 @@ curl -fsSL https://raw.githubusercontent.com/sbrothers7/UMMInstall/main/cli/inst
 | `amm reinstall --<method>` | Reinstall with another method |
 | `amm uninstall` | Remove the loader |
 | `amm default [method]` | Show or set the default loader |
+| `amm status` | Show the game, loader and mod counts |
 | `amm list` / `-l` | List installed mods |
-| `amm search <text>` / `-s` | Search the mod list |
+| `amm search [text]` / `-s` | Search the mod list (no text lists every mod with its versions and game versions) |
 | `amm modinstall <mod>` / `mi` | Install a mod |
 | `amm mr <mod>` (`--keep`) | Remove a mod (`--keep` keeps its settings) |
 | `amm upgrade` | Upgrade all installed mods |
 | `amm upgrade <slug>` | Upgrade one mod |
+| `amm update` | Update amm, ammtui and the GUI app (in Applications) to the latest release |
 
 `ammtui` opens the interactive menu. Add `-y` to skip confirmations. On Linux (x64), only the native build with MelonLoader is supported.
 

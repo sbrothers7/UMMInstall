@@ -155,10 +155,19 @@ Future<int> uninstall(Ctx c) async {
   return _uninstallCurrent(c, f, current);
 }
 
-/// What `amm install` prints when a loader is already there.
+/// `amm status`: reads the disk only.
+Future<int> status(Ctx c) async {
+  final f = await c.facts();
+  if (!gameFound(c, f)) return 1;
+  printStatus(c, f, currentMethod(f));
+  return 0;
+}
+
+/// What `amm status` prints, and `amm install` when a loader is already there.
 void printStatus(Ctx c, GameFacts f, Method current) {
   final missing = missingLoaderFiles(f);
   final launch = SteamConfig.launchOptionsSet();
+  final archived = ModStore.scanArchived().length;
   final rows = [
     ('Game:', f.gamePath),
     (
@@ -186,6 +195,11 @@ void printStatus(Ctx c, GameFacts f, Method current) {
       ),
     if (f.appleSilicon)
       ('arm64 slice:', f.hasArm64Slice ? 'present' : 'stripped'),
+    (
+      'Mods:',
+      '${ModStore.scanInstalled().length} installed'
+          '${archived > 0 ? ', $archived archived' : ''}',
+    ),
   ];
   final w = rows.map((r) => r.$1.length).reduce((a, b) => a > b ? a : b);
   for (final (label, value) in rows) {

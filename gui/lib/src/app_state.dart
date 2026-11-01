@@ -51,7 +51,7 @@ class AppState extends ChangeNotifier {
 
     final latest = await Updater.fetchLatest();
     if (latest != null &&
-        Updater.isNewer(latest.tag, Updater.currentVersion) &&
+        isNewerVersion(latest.tag, Updater.currentVersion) &&
         Updater.canSelfUpdate()) {
       updateTag = latest.tag;
       _updateUrl = latest.assetUrl;
