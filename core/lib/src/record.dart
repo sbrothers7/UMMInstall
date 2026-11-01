@@ -14,6 +14,10 @@ class RecordEntry {
   final List<String> paths;
 
   const RecordEntry({required this.source, this.version, required this.paths});
+
+  /// Whether [relPath] is one of [paths] or inside one.
+  bool owns(String relPath) =>
+      paths.any((q) => relPath == q || relPath.startsWith('$q/'));
 }
 
 /// `<game>/.amm/installed.json`: the loader method and mods amm installed.
@@ -25,7 +29,9 @@ class AmmRecord {
       p.join(gameRoot, '.amm', 'installed.json');
 
   /// Reads the record; a missing file gives an empty one, a corrupt file is
-  /// renamed to `installed.json.bad` and an empty one is returned.
+  /// renamed to `installed.json.bad` and an empty one is returned. Entries
+  /// none of whose paths exist under [gameRoot] are dropped (the next [save]
+  /// persists that).
   static AmmRecord load(String gameRoot) {
     final f = File(_file(gameRoot));
     final rec = AmmRecord();
@@ -36,10 +42,12 @@ class AmmRecord {
       rec.method = m == null ? null : Method.parse(m);
       (j['mods'] as Map<String, dynamic>? ?? {}).forEach((slug, v) {
         final e = v as Map<String, dynamic>;
+        final paths = (e['paths'] as List).cast<String>();
+        if (!paths.any((q) => _exists(gameRoot, q))) return;
         rec.mods[slug] = RecordEntry(
           source: e['source'] as String,
           version: e['version'] as String?,
-          paths: (e['paths'] as List).cast<String>(),
+          paths: paths,
         );
       });
       return rec;
@@ -49,6 +57,12 @@ class AmmRecord {
       } catch (_) {}
       return AmmRecord();
     }
+  }
+
+  static bool _exists(String gameRoot, String rel) {
+    final abs = p.normalize(p.join(gameRoot, rel));
+    return p.isWithin(gameRoot, abs) &&
+        FileSystemEntity.typeSync(abs) != FileSystemEntityType.notFound;
   }
 
   void save(String gameRoot) {
@@ -84,11 +98,11 @@ class AmmRecord {
     }
   }
 
-  /// The entry that owns [relPath] (equal to, or inside, one of its paths).
-  RecordEntry? ownerOf(String relPath) {
-    for (final e in mods.values) {
-      if (e.paths.any((q) => relPath == q || relPath.startsWith('$q/'))) return e;
-    }
-    return null;
-  }
+  /// The slug of the entry that owns [relPath] (equal to, or inside, one of
+  /// its paths).
+  String? ownerSlug(String relPath) =>
+      mods.keys.where((k) => mods[k]!.owns(relPath)).firstOrNull;
+
+  /// The entry that owns [relPath].
+  RecordEntry? ownerOf(String relPath) => mods[ownerSlug(relPath)];
 }

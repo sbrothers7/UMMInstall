@@ -48,7 +48,7 @@ class Upgrade {
   final String? from;
   final String to;
 
-  /// Relative to the game root; removed once the new download succeeds.
+  /// Relative to the game root; replaced once the new download succeeds.
   final List<String> oldPaths;
 
   const Upgrade(
@@ -60,7 +60,10 @@ class UpgradeScan {
 
   /// On-disk mods with no catalog match.
   final List<String> unknown;
-  const UpgradeScan(this.upgrades, this.unknown);
+
+  /// Slugs recorded or matched on disk, whether or not they need upgrading.
+  final Set<String> installed;
+  const UpgradeScan(this.upgrades, this.unknown, this.installed);
 }
 
 /// Install, remove and upgrade mods; the logic behind `amm modinstall`,
@@ -156,7 +159,8 @@ class ModOps {
   static RecordEntry _place(CatalogEntry e, ModTarget t, List<int> bytes) {
     final s = _source(e, t);
     final placed = ModDownloader.installBytes(bytes,
-        modId: e.name,
+        // A modlist.org name is free text; its slug is safe as a folder name.
+        modId: e.ours?.id ?? e.slug,
         gameRoot: t.gameRoot,
         modsDir: s.modsDir,
         melonNative: s.melonNative);
@@ -203,7 +207,8 @@ class ModOps {
         ModStore.delete(abs);
       }
     }
-    if (key != null) r.mods.remove(key);
+    // Whatever owned a removed path is stale now, whatever its slug.
+    r.mods.removeWhere((_, e) => rel.any(e.owns));
     return rel;
   }
 
@@ -223,7 +228,9 @@ class ModOps {
   static bool _differs(String latest, String? have) =>
       have == null || _bare(latest) != _bare(have);
 
+  /// The version an upgrade would install; null when [upgrade] would refuse.
   static String? _latest(CatalogEntry e, ModTarget t) {
+    if (e.jalib || !e.visibleOn(t.isV2)) return null;
     try {
       return _source(e, t).version;
     } on ModOpsException {
@@ -234,6 +241,7 @@ class ModOps {
   static UpgradeScan upgrades(
       Catalog c, AmmRecord r, List<InstalledMod> onDisk, ModTarget t) {
     final ups = <Upgrade>[];
+    final installed = {for (final k in r.mods.keys) k.toLowerCase()};
     for (final kv in r.mods.entries) {
       final have = kv.value.version;
       final e = c.find(kv.key);
@@ -260,16 +268,20 @@ class ModOps {
         unknown.add(name);
         continue;
       }
+      installed.add(e.slug);
       final latest = _latest(e, t);
       final have = ModStore.infoField(m.path, 'Version');
       if (latest != null && _differs(latest, have)) {
         ups.add(Upgrade(entry: e, from: have, to: latest, oldPaths: [rel]));
       }
     }
-    return UpgradeScan(ups, unknown);
+    return UpgradeScan(ups, unknown, installed);
   }
 
-  /// Downloads first; the old files are only removed once that succeeded.
+  /// Downloads first, then swaps: the old paths move to
+  /// `.amm/backup/<slug>`, the new version is placed, and the user's files are
+  /// copied back (see [_restoreUserFiles]). Any failure after the download
+  /// removes the new files and puts the old ones back.
   static Future<RecordEntry> upgrade(Upgrade u, ModTarget t,
       {void Function(double)? onProgress}) async {
     final olds = [for (final path in u.oldPaths) _inside(t.gameRoot, path)];
@@ -280,7 +292,58 @@ class ModOps {
     } catch (_) {
       throw ModDownloadException('The download was not a valid zip archive.');
     }
-    olds.forEach(ModStore.delete);
-    return _place(u.entry, t, bytes);
+    final backup = p.join(t.gameRoot, '.amm', 'backup', u.entry.slug);
+    ModStore.delete(backup);
+    final saved = <(String, String)>[]; // (old path, its backup)
+    var placed = const <String>[];
+    try {
+      for (final abs in olds) {
+        if (FileSystemEntity.typeSync(abs) == FileSystemEntityType.notFound) continue;
+        final dst = p.join(backup, p.relative(abs, from: t.gameRoot));
+        Directory(p.dirname(dst)).createSync(recursive: true);
+        ModStore.moveEntity(abs, dst);
+        saved.add((abs, dst));
+      }
+      final e = _place(u.entry, t, bytes);
+      placed = [for (final rel in e.paths) p.join(t.gameRoot, rel)];
+      _restoreUserFiles(saved, t.gameRoot);
+      ModStore.delete(backup);
+      return e;
+    } catch (_) {
+      placed.forEach(ModStore.delete);
+      for (final (abs, dst) in saved) {
+        ModStore.moveEntity(dst, abs);
+      }
+      ModStore.delete(backup);
+      rethrow;
+    }
+  }
+
+  /// Copies back what the user had in the old version: under `UserData/`
+  /// every file (user data wins); elsewhere, inside folders the new version
+  /// also has, the files it didn't ship, except DLLs (new code wins).
+  static void _restoreUserFiles(List<(String, String)> saved, String gameRoot) {
+    for (final (abs, dst) in saved) {
+      final userData = p.split(p.relative(abs, from: gameRoot)).first == 'UserData';
+      final List<(File, String)> files;
+      if (FileSystemEntity.isDirectorySync(dst)) {
+        if (!userData && !FileSystemEntity.isDirectorySync(abs)) continue;
+        files = [
+          for (final f in Directory(dst).listSync(recursive: true, followLinks: false))
+            if (f is File) (f, p.join(abs, p.relative(f.path, from: dst))),
+        ];
+      } else {
+        files = [if (userData) (File(dst), abs)];
+      }
+      for (final (f, to) in files) {
+        if (!userData &&
+            (p.extension(to).toLowerCase() == '.dll' ||
+                FileSystemEntity.typeSync(to) != FileSystemEntityType.notFound)) {
+          continue;
+        }
+        Directory(p.dirname(to)).createSync(recursive: true);
+        f.copySync(to);
+      }
+    }
   }
 }

@@ -47,7 +47,7 @@ void main() {
 
   final catalog = Catalog.merge([
     const Mod(id: 'Ours', slug: 'ours', url: 'https://x/ours.zip', version: 'v1.0'),
-    const Mod(id: 'J', slug: 'j', url: 'https://x/j.zip', jalib: true),
+    const Mod(id: 'J', slug: 'j', url: 'https://x/j.zip', jalib: true, version: '2'),
     const Mod(id: 'Old', slug: 'old', url: 'https://x/old.zip', v2: false),
     const Mod(id: 'Fail', slug: 'fail', url: 'https://x/fail.zip', version: '2'),
   ], [
@@ -120,6 +120,16 @@ void main() {
       expect(requested.single.queryParameters['loader'], 'umm');
       expect(Directory(p.join(game, 'UMMMods', 'Folder')).existsSync(), isTrue);
     });
+
+    test('modlist-only loose-file mod lands in <modsDir>/<slug>', () async {
+      httpClient = MockClient(
+          (_) async => http.Response.bytes(zip({'Info.json': '{}', 'M.dll': 'a'}), 200));
+      final c = Catalog.merge(
+          [], [const ModlistMod(slug: 'loose', name: 'Loose / Mod', version: '1')]);
+      final e = await ModOps.install(c.find('loose')!, target());
+      expect(e.paths, ['Mods/loose']);
+      expect(File(p.join(game, 'Mods', 'loose', 'M.dll')).existsSync(), isTrue);
+    });
   });
 
   group('remove', () {
@@ -150,6 +160,16 @@ void main() {
       mod('Mods/Quartz');
       expect(ModOps.remove('quartz', AmmRecord(), game), ['Mods/Quartz']);
       expect(Directory(p.join(game, 'Mods', 'Quartz')).existsSync(), isFalse);
+    });
+
+    test('remove by folder name drops the owning record entry', () {
+      mod('Mods/Quartz');
+      final r = AmmRecord()
+        ..mods['quartz-ml'] =
+            const RecordEntry(source: 'modlist.org', paths: ['Mods/Quartz'])
+        ..mods['other'] = const RecordEntry(source: 'modlist.org', paths: ['Mods/Other']);
+      expect(ModOps.remove('quartz', r, game), ['Mods/Quartz']);
+      expect(r.mods.keys, ['other']);
     });
 
     test('remove refuses record paths outside the game folder', () {
@@ -201,6 +221,22 @@ void main() {
       expect(s.unknown, ['Mystery']);
     });
 
+    test('upgrades skips entries whose files are gone', () {
+      (AmmRecord()
+            ..mods['both'] = const RecordEntry(
+                source: 'modlist.org', version: '0', paths: ['UMMMods/B']))
+          .save(game);
+      expect(ModOps.upgrades(catalog, AmmRecord.load(game), [], target()).upgrades,
+          isEmpty);
+    });
+
+    test('an unrecorded JALib mod on disk is not offered', () {
+      final d = Directory(p.join(game, 'Mods', 'JDir'))..createSync(recursive: true);
+      File(p.join(d.path, 'Info.json')).writeAsStringSync('{"Id":"j","Version":"1"}');
+      final s = ModOps.upgrades(catalog, AmmRecord(), ModStore.scanInstalled(), target());
+      expect(s.upgrades, isEmpty);
+    });
+
     test('upgrade keeps the old mod when the download fails', () async {
       final old = Directory(p.join(game, 'Mods', 'Old'))..createSync(recursive: true);
       final u = Upgrade(
@@ -226,6 +262,60 @@ void main() {
       final e = await ModOps.upgrade(u, target());
       expect(old.existsSync(), isFalse);
       expect(e.paths, ['Mods/Folder']);
+    });
+
+    void serve(Map<String, String> files) =>
+        httpClient = MockClient((_) async => http.Response.bytes(zip(files), 200));
+    String read(String rel) => File(p.join(game, rel)).readAsStringSync();
+    void write(String rel, String s) => File(p.join(game, rel))
+      ..createSync(recursive: true)
+      ..writeAsStringSync(s);
+    bool backupLeft() =>
+        Directory(p.join(game, '.amm', 'backup', 'ours')).existsSync();
+
+    test('upgrade keeps Settings.xml and drops the old dll', () async {
+      write('UMMMods/X/Info.json', '{"Id":"X","Version":"0"}');
+      write('UMMMods/X/X.dll', 'old');
+      write('UMMMods/X/Gone.dll', 'old');
+      write('UMMMods/X/Settings.xml', '<mine/>');
+      serve({'X/Info.json': '{"Id":"X","Version":"1"}', 'X/X.dll': 'new'});
+      final u = Upgrade(
+          entry: catalog.find('ours')!, from: '0', to: 'v1.0', oldPaths: ['UMMMods/X']);
+      final e = await ModOps.upgrade(u, target(melon: true));
+      expect(e.paths, ['UMMMods/X']);
+      expect(read('UMMMods/X/Settings.xml'), '<mine/>');
+      expect(read('UMMMods/X/X.dll'), 'new');
+      expect(read('UMMMods/X/Info.json'), contains('"1"'));
+      expect(File(p.join(game, 'UMMMods/X/Gone.dll')).existsSync(), isFalse);
+      expect(backupLeft(), isFalse);
+    });
+
+    test('upgrade keeps UserData files', () async {
+      write('Mods/Q.dll', 'old');
+      write('UserData/Q/config.json', 'mine');
+      serve({'Mods/Q.dll': 'new', 'UserData/Q/config.json': 'default'});
+      final u = Upgrade(
+          entry: catalog.find('mlonly')!,
+          from: '0',
+          to: '1',
+          oldPaths: ['Mods/Q.dll', 'UserData/Q']);
+      final e = await ModOps.upgrade(u, target(melon: true));
+      expect(e.paths, unorderedEquals(['Mods/Q.dll', 'UserData/Q']));
+      expect(read('Mods/Q.dll'), 'new');
+      expect(read('UserData/Q/config.json'), 'mine');
+    });
+
+    test('upgrade rolls back when install throws', () async {
+      write('UMMMods/X/X.dll', 'old');
+      write('UMMMods/X/Settings.xml', '<mine/>');
+      serve({'../evil.txt': 'x'});
+      final u = Upgrade(
+          entry: catalog.find('ours')!, from: '0', to: 'v1.0', oldPaths: ['UMMMods/X']);
+      await expectLater(
+          ModOps.upgrade(u, target(melon: true)), throwsA(isA<ModDownloadException>()));
+      expect(read('UMMMods/X/X.dll'), 'old');
+      expect(read('UMMMods/X/Settings.xml'), '<mine/>');
+      expect(backupLeft(), isFalse);
     });
   });
 }

@@ -9,6 +9,7 @@ void main() {
   tearDown(() => root.deleteSync(recursive: true));
 
   test('round-trips method and mods', () {
+    Directory(p.join(root.path, 'UMMMods', 'Quartz')).createSync(recursive: true);
     final r = AmmRecord()
       ..method = Method.ml
       ..mods['quartz'] = const RecordEntry(
@@ -38,5 +39,16 @@ void main() {
     r.movePaths('Mods', 'UMMMods', ['A', 'B']);
     expect(r.mods['a']!.paths, ['UMMMods/A', 'UMMMods/B/x']);
     expect(r.mods['c']!.paths, ['Mods/C']);
+  });
+
+  test('load drops entries whose files are gone', () {
+    Directory(p.join(root.path, 'Mods', 'Here')).createSync(recursive: true);
+    (AmmRecord()
+          ..mods['here'] = const RecordEntry(
+              source: 'mods.json', paths: ['Mods/Here', 'UserData/gone.cfg'])
+          ..mods['gone'] = const RecordEntry(source: 'mods.json', paths: ['Mods/Gone'])
+          ..mods['outside'] = const RecordEntry(source: 'mods.json', paths: ['..']))
+        .save(root.path);
+    expect(AmmRecord.load(root.path).mods.keys, ['here']);
   });
 }
