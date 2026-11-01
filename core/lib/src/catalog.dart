@@ -20,11 +20,22 @@ class CatalogEntry {
   CatalogEntry({required this.ours, required this.theirs})
       : slug = (ours?.slug ?? theirs!.slug).toLowerCase(),
         name = ours?.id ?? theirs!.name,
-        summary = theirs?.summary ?? '',
+        summary = (theirs?.summary ?? '').isNotEmpty
+            ? theirs!.summary
+            : ours?.summary ?? '',
         source = ours != null ? Source.modsJson : Source.modlist;
 
   bool get jalib => ours?.jalib ?? false;
   List<String> get dependencies => theirs?.dependencies ?? const [];
+
+  /// Game versions the mod supports: modlist.org's when it lists some, else
+  /// the builds mods.json allows.
+  List<String> get gameVersions {
+    final t = theirs?.gameVersions ?? const [];
+    final o = ours;
+    if (t.isNotEmpty || o == null) return t;
+    return [if (o.v2) '2.x', if (o.v3) '3.x'];
+  }
 
   /// Whether the mod works on the given game build (null = unknown, show it).
   bool visibleOn(bool? isV2) {

@@ -34,6 +34,19 @@ void main() {
     expect(c.find('x')!.source, Source.modlist);
   });
 
+  test('summary prefers modlist.org, else mods.json', () {
+    final c = Catalog.merge(
+      [
+        const Mod(id: 'A', slug: 'a', url: 'u', summary: 'ours'),
+        const Mod(id: 'B', slug: 'b', url: 'u', summary: 'ours'),
+        const Mod(id: 'C', slug: 'c', url: 'u', summary: 'ours'),
+        const Mod(id: 'D', slug: 'd', url: 'u'),
+      ],
+      [theirs('a', summary: 'theirs'), theirs('b')],
+    );
+    expect([for (final e in c.entries) e.summary], ['theirs', 'ours', 'ours', '']);
+  });
+
   test('find is case-insensitive', () {
     expect(Catalog.merge(ours, []).find('Quartz')?.slug, 'quartz');
   });
@@ -42,6 +55,26 @@ void main() {
     final c = Catalog.merge(ours, [theirs('x', summary: 'Hello World')]);
     expect(c.search('hello world').map((e) => e.slug), ['x']);
     expect(c.search('').length, 3);
+  });
+
+  test('gameVersions prefers modlist.org, else the mods.json builds', () {
+    final c = Catalog.merge(
+      [
+        ...ours,
+        const Mod(id: 'Both', slug: 'both', url: 'u'),
+        const Mod(id: 'V2', slug: 'v2', url: 'u', v3: false),
+      ],
+      [
+        const ModlistMod(slug: 'quartz', name: 'Quartz', gameVersions: ['3.4.0']),
+        const ModlistMod(slug: 'both', name: 'Both'),
+        const ModlistMod(slug: 'x', name: 'X'),
+      ],
+    );
+    expect(c.find('quartz')!.gameVersions, ['3.4.0']);
+    expect(c.find('both')!.gameVersions, ['2.x', '3.x']);
+    expect(c.find('old')!.gameVersions, ['3.x']);
+    expect(c.find('v2')!.gameVersions, ['2.x']);
+    expect(c.find('x')!.gameVersions, isEmpty);
   });
 
   test('visibleOn hides v2:false on v2', () {

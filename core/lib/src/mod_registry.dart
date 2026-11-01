@@ -14,6 +14,7 @@ class Mod {
   final String? install; // special install handler key (e.g. "quartz")
   final String? version; // newest version of `url`, when the bot tracks it
   final String? versionMelon; // same for `urlMelon`
+  final String? summary; // one line, shown when modlist.org has none
 
   const Mod({
     required this.id,
@@ -27,6 +28,7 @@ class Mod {
     this.install,
     this.version,
     this.versionMelon,
+    this.summary,
   });
 
   factory Mod.fromJson(Map<String, dynamic> j) => Mod(
@@ -41,6 +43,7 @@ class Mod {
         install: j['install'] as String?,
         version: j['version'] as String?,
         versionMelon: j['versionMelon'] as String?,
+        summary: j['summary'] as String?,
       );
 
   String resolvedUrl({required bool isGameV2, required bool isMelonLoader}) {

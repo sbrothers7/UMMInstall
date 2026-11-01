@@ -22,6 +22,8 @@ void main() {
     expect(mod.v3, true);
     expect(mod.jalib, false);
     expect(mod.install, isNull);
+    expect(mod.summary, isNull);
+    expect(Mod.fromJson({'id': 'X', 'url': 'u', 'summary': 'S'}).summary, 'S');
   });
 
   test('Mod.slug falls back to lowercased id', () {

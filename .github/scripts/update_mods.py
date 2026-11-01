@@ -30,7 +30,7 @@ TRACKS = [
     ("urlMelon", "repoMelon", "assetMelon", "versionMelon"),
 ]
 LINK_FIELDS = ("url", "urlV2", "urlMelon")
-STR_FIELDS = {"id", "slug", "url", "urlV2", "urlMelon", "install", "repo", "asset",
+STR_FIELDS = {"id", "slug", "summary", "url", "urlV2", "urlMelon", "install", "repo", "asset",
               "assetMelon", "repoMelon", "version", "versionMelon"}
 BOOL_FIELDS = {"v2", "v3", "jalib", "prerelease"}
 

@@ -38,6 +38,22 @@ void main() {
     expect(m.version, isNull);
     expect(m.dependencies, isEmpty);
     expect(m.loaders, isEmpty);
+    expect(m.gameVersions, isEmpty);
+  });
+
+  test('fromJson reads game versions, falling back to gameVersion', () {
+    ModlistMod mod(Map<String, dynamic> latest) =>
+        ModlistMod.fromJson({'slug': 's', 'name': 'S', 'latestVersion': latest});
+    expect(
+      mod({
+        'gameVersion': '2.9.5-2.9.8, 3.1.0-3.4.0',
+        'availableGameVersions': ['2.9.5-2.9.8', '3.1.0-3.4.0'],
+      }).gameVersions,
+      ['2.9.5-2.9.8', '3.1.0-3.4.0'],
+    );
+    expect(mod({'gameVersion': '2.9.8+'}).gameVersions, ['2.9.8+']);
+    expect(mod({'gameVersion': '', 'availableGameVersions': []}).gameVersions, isEmpty);
+    expect(ModlistMod.fromJson(quartz).gameVersions, isEmpty);
   });
 
   test('fetchAll follows pagination', () async {
