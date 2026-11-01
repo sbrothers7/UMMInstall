@@ -1,11 +1,7 @@
-import 'dart:io';
-
 import 'package:amm/src/cli.dart';
-import 'package:amm/src/config.dart';
-import 'package:amm/src/context.dart';
-import 'package:amm/src/out.dart';
-import 'package:amm_core/amm_core.dart';
 import 'package:test/test.dart';
+
+import 'helpers.dart';
 
 void main() {
   test('normalize maps -l, -s, mi', () {
@@ -16,23 +12,20 @@ void main() {
   });
 
   Future<(int, String)> run(List<String> argv) async {
-    final sink = StringBuffer();
-    final tmp = Directory.systemTemp.createTempSync('amm_cli');
-    addTearDown(() => tmp.deleteSync(recursive: true));
+    final env = testEnv();
     final code = await runCli(
       argv,
-      makeCtx: (yes) => Ctx(
-        out: Out(sink: sink),
-        config: Config.load(env: {'XDG_CONFIG_HOME': tmp.path}),
+      makeCtx: (yes) => env.ctx(
         yes: yes,
-        facts: () async => const GameFacts(
-          os: 'macos', found: false, gamePath: '/nope', version: null,
-          major: null, appleSilicon: true, hasArm64Slice: true,
-          loader: LoaderKind.none,
+        facts: env.facts(
+          found: false,
+          gamePath: '/nope',
+          version: null,
+          major: null,
         ),
       ),
     );
-    return (code, sink.toString());
+    return (code, env.sink.toString());
   }
 
   test('two method flags is a usage error', () async {
@@ -52,8 +45,8 @@ void main() {
   });
 
   test('unimplemented command is stubbed', () async {
-    final (code, text) = await run(['install', '--ml']);
+    final (code, text) = await run(['upgrade']);
     expect(code, 1);
-    expect(text, contains('install: not implemented yet'));
+    expect(text, contains('upgrade: not implemented yet'));
   });
 }

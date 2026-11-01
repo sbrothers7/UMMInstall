@@ -1,8 +1,10 @@
 import 'dart:io';
 
+import 'package:amm_core/amm_core.dart';
 import 'package:args/args.dart';
 
 import 'context.dart';
+import 'loader_commands.dart';
 import 'mod_commands.dart';
 
 const _usage = '''
@@ -102,7 +104,11 @@ Future<int> runCli(List<String> argv, {Ctx Function(bool yes)? makeCtx}) async {
   final yes = (top['yes'] as bool) || (cmd['yes'] as bool);
   final name = cmd.name!;
   final c = (makeCtx ?? (yes) => Ctx(yes: yes))(yes);
+  final method = methods.isEmpty ? null : Method.parse(methods.first);
   return switch (name) {
+    'install' => install(c, method: method),
+    'reinstall' => reinstall(c, method: method),
+    'uninstall' => uninstall(c),
     'default' => setDefault(c, cmd.rest.firstOrNull),
     'list' => list(c),
     'search' when cmd.rest.isEmpty =>
@@ -112,7 +118,7 @@ Future<int> runCli(List<String> argv, {Ctx Function(bool yes)? makeCtx}) async {
   };
 }
 
-// Tasks 8-10 replace these.
+// Tasks 9-10 replace these.
 Future<int> _notImplemented(Ctx c, String name) async {
   c.out.line('$name: not implemented yet');
   return 1;

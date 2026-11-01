@@ -27,7 +27,13 @@ class SteamConfig {
       Platform.environment['USERPROFILE'] ??
       '';
 
+  static List<String>? _rootsOverride;
+
+  /// Replaces the Steam folders searched (for tests); null restores them.
+  static void overrideRoots(List<String>? roots) => _rootsOverride = roots;
+
   static List<String> _steamRoots() {
+    if (_rootsOverride != null) return _rootsOverride!;
     if (Platform.isMacOS) {
       return [p.join(_home, 'Library/Application Support/Steam')];
     }
