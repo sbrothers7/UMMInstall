@@ -60,6 +60,17 @@ echo "Using brew at: $(command -v brew)"
 
 GAME_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist" 2>/dev/null)
 GAME_MAJOR="${GAME_VERSION%%.*}"
+
+# $1: method argument (rosetta|native|empty), $2: game major version.
+# No argument keeps the old behavior: v2 -> rosetta, anything else -> native.
+pick_mode() {
+    case "$1" in
+        rosetta|native) echo "$1" ;;
+        "") if [ "$2" = "2" ]; then echo rosetta; else echo native; fi ;;
+        *) echo "error:Unknown method '$1' (expected rosetta or native)." >&2; return 1 ;;
+    esac
+}
+MODE="$(pick_mode "${1:-}" "$GAME_MAJOR")"
 echo "Detected ADOFAI version: ${GAME_VERSION:-unknown}"
 
 if [ -f "$REAL" ]; then
@@ -74,7 +85,7 @@ if [ -f "$REAL" ]; then
     fi
 fi
 
-if [ "$GAME_MAJOR" = "2" ]; then
+if [ "$MODE" = "rosetta" ]; then
     # ============================================================
     # v2.x: legacy Unity 2022 build — Console.exe + arm64 strip
     # ============================================================

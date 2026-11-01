@@ -447,6 +447,11 @@ class AppState extends ChangeNotifier {
     _runInstall();
   }
 
+  /// Which install method the GUI's loader choice maps to.
+  Method _guiMethod(LoaderType l) => l == LoaderType.melonLoader
+      ? Method.ml
+      : (isGameV2 ? Method.rosetta : Method.native);
+
   Future<void> _runInstall() async {
     if (hasMelonLoader) {
       log(LogLevel.info, t('MelonLoader detected — skipping loader install.',
@@ -458,8 +463,8 @@ class AppState extends ChangeNotifier {
       final name = selectedLoader == LoaderType.melonLoader
           ? 'MelonLoader'
           : 'Unity Mod Manager';
-      final url = InstallScripts.installUrl(selectedLoader);
-      if (url == null) {
+      final call = InstallScripts.install(_guiMethod(selectedLoader));
+      if (call == null) {
         log(LogLevel.error, t("$name isn't supported on this platform yet.",
             '$name은(는) 아직 이 플랫폼에서 지원되지 않습니다.'));
         _complete(false, t('Installation failed.', '설치 실패.'));
@@ -467,7 +472,7 @@ class AppState extends ChangeNotifier {
       }
       log(LogLevel.info, t('Installing $name…', '$name 설치 중…'));
       final code = await ScriptRunner.run(
-          url: url, onLog: log, onSubtitle: _setSubtitle);
+          call: call, onLog: log, onSubtitle: _setSubtitle);
       if (code != 0) {
         log(LogLevel.error, t('$name installation failed.', '$name 설치 실패.'));
         _complete(false, t('Installation failed.', '설치 실패.'));
@@ -551,8 +556,12 @@ class AppState extends ChangeNotifier {
   Future<void> _runUninstall() async {
     final melon = hasMelonLoader;
     final name = melon ? 'MelonLoader' : 'Unity Mod Manager';
-    final url = InstallScripts.uninstallUrl(isMelon: melon);
-    if (url == null) {
+    final call = InstallScripts.uninstall(inferMethod(
+        loader: melon ? LoaderKind.melonLoader : LoaderKind.umm,
+        isV2: isGameV2,
+        appleSilicon: GamePaths.isAppleSilicon(),
+        hasArm64Slice: GamePaths.hasArm64Slice()));
+    if (call == null) {
       log(LogLevel.error, t("$name uninstall isn't supported on this platform yet.",
           '$name 제거는 아직 이 플랫폼에서 지원되지 않습니다.'));
       _complete(false, t('Uninstall failed.', '제거 실패.'));
@@ -560,7 +569,7 @@ class AppState extends ChangeNotifier {
     }
     log(LogLevel.info, t('Uninstalling $name…', '$name 제거 중…'));
     final code =
-        await ScriptRunner.run(url: url, onLog: log, onSubtitle: _setSubtitle);
+        await ScriptRunner.run(call: call, onLog: log, onSubtitle: _setSubtitle);
     if (code != 0) {
       log(LogLevel.error, t('$name uninstall failed.', '$name 제거 실패.'));
       _complete(false, t('Uninstall failed.', '제거 실패.'));
@@ -585,9 +594,13 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _runMigration() async {
-    final unUrl = InstallScripts.uninstallUrl(isMelon: false);
-    final inUrl = InstallScripts.installUrl(LoaderType.melonLoader);
-    if (unUrl == null || inUrl == null) {
+    final unCall = InstallScripts.uninstall(inferMethod(
+        loader: LoaderKind.umm,
+        isV2: isGameV2,
+        appleSilicon: GamePaths.isAppleSilicon(),
+        hasArm64Slice: GamePaths.hasArm64Slice()));
+    final inCall = InstallScripts.install(Method.ml);
+    if (unCall == null || inCall == null) {
       log(LogLevel.error, t("Migration isn't supported on this platform yet.",
           '마이그레이션은 아직 이 플랫폼에서 지원되지 않습니다.'));
       _complete(false, t('Migration failed.', '마이그레이션 실패.'));
@@ -596,7 +609,7 @@ class AppState extends ChangeNotifier {
 
     log(LogLevel.info, t('Removing Unity Mod Manager…', 'Unity Mod Manager 제거 중…'));
     var code =
-        await ScriptRunner.run(url: unUrl, onLog: log, onSubtitle: _setSubtitle);
+        await ScriptRunner.run(call: unCall, onLog: log, onSubtitle: _setSubtitle);
     if (code != 0) {
       log(LogLevel.error, t('Failed to remove Unity Mod Manager.', 'Unity Mod Manager 제거 실패.'));
       _complete(false, t('Migration failed.', '마이그레이션 실패.'));
@@ -607,7 +620,7 @@ class AppState extends ChangeNotifier {
     _setSubtitle(t('Installing MelonLoader…', 'MelonLoader 설치 중…'));
     log(LogLevel.info, t('Installing MelonLoader…', 'MelonLoader 설치 중…'));
     code =
-        await ScriptRunner.run(url: inUrl, onLog: log, onSubtitle: _setSubtitle);
+        await ScriptRunner.run(call: inCall, onLog: log, onSubtitle: _setSubtitle);
     if (code != 0) {
       log(LogLevel.error, t('MelonLoader installation failed.', 'MelonLoader 설치 실패.'));
       _complete(false, t('Migration failed.', '마이그레이션 실패.'));

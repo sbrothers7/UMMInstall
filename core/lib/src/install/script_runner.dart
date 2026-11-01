@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 
 import '../models.dart';
 import '../net.dart';
+import 'install_scripts.dart';
 
 /// Downloads a per-OS install script and runs it, streaming its output into the
 /// log. Mirrors the macOS app's ScriptRunner: scripts emit `info:`/`ok:`/
@@ -13,7 +14,7 @@ class ScriptRunner {
       RegExp(r'^[#\s]*\d{1,3}(\.\d+)?%[#\s]*$|^#{3,}\s*$');
 
   static Future<int> run({
-    required String url,
+    required ScriptCall call,
     required void Function(LogLevel, String) onLog,
     required void Function(String) onSubtitle,
   }) async {
@@ -24,7 +25,7 @@ class ScriptRunner {
 
     try {
       final resp =
-          await httpClient.get(Uri.parse(url)).timeout(const Duration(seconds: 20));
+          await httpClient.get(Uri.parse(call.url)).timeout(const Duration(seconds: 20));
       if (resp.statusCode >= 400) {
         onLog(LogLevel.error, 'Failed to download script (HTTP ${resp.statusCode}).');
         return -1;
@@ -40,9 +41,9 @@ class ScriptRunner {
     try {
       if (isPs) {
         proc = await Process.start('powershell',
-            ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', tmp]);
+            ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', tmp, ...call.args]);
       } else {
-        proc = await Process.start('/bin/bash', [tmp]);
+        proc = await Process.start('/bin/bash', [tmp, ...call.args]);
       }
     } catch (e) {
       onLog(LogLevel.error, 'Failed to start script.');
