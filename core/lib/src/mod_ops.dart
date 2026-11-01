@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:archive/archive.dart';
 import 'package:path/path.dart' as p;
 
 import 'catalog.dart';
@@ -191,8 +192,8 @@ class ModOps {
       }
     }
     if (rel.isEmpty) throw ModOpsException('No installed mod matches "$slug".');
-    for (final path in rel) {
-      final abs = p.join(gameRoot, path);
+    final abss = [for (final path in rel) _inside(gameRoot, path)];
+    for (final abs in abss) {
       if (keep) {
         ModStore.archive(InstalledMod(
             name: p.basename(abs),
@@ -204,6 +205,15 @@ class ModOps {
     }
     if (key != null) r.mods.remove(key);
     return rel;
+  }
+
+  /// Absolute form of record path [rel]; refuses anything outside [gameRoot].
+  static String _inside(String gameRoot, String rel) {
+    final abs = p.normalize(p.join(gameRoot, rel));
+    if (!p.isWithin(gameRoot, abs)) {
+      throw ModOpsException('Refusing to touch $rel: outside the game folder.');
+    }
+    return abs;
   }
 
   static String _bare(String v) =>
@@ -262,10 +272,15 @@ class ModOps {
   /// Downloads first; the old files are only removed once that succeeded.
   static Future<RecordEntry> upgrade(Upgrade u, ModTarget t,
       {void Function(double)? onProgress}) async {
+    final olds = [for (final path in u.oldPaths) _inside(t.gameRoot, path)];
     final bytes = await _fetch(u.entry, t, onProgress);
-    for (final path in u.oldPaths) {
-      ModStore.delete(p.join(t.gameRoot, path));
+    // A 200 that isn't a zip must not cost the user the old mod.
+    try {
+      if (ZipDecoder().decodeBytes(bytes).isEmpty) throw const FormatException();
+    } catch (_) {
+      throw ModDownloadException('The download was not a valid zip archive.');
     }
+    olds.forEach(ModStore.delete);
     return _place(u.entry, t, bytes);
   }
 }

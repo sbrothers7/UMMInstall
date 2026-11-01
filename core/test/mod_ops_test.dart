@@ -152,6 +152,15 @@ void main() {
       expect(Directory(p.join(game, 'Mods', 'Quartz')).existsSync(), isFalse);
     });
 
+    test('remove refuses record paths outside the game folder', () {
+      final f = File(p.join(root.path, 'outside.txt'))..writeAsStringSync('x');
+      final r = AmmRecord()
+        ..mods['ours'] = const RecordEntry(source: 'mods.json', paths: ['../outside.txt']);
+      expect(() => ModOps.remove('ours', r, game),
+          throwsA(isA<ModOpsException>()));
+      expect(f.existsSync(), isTrue);
+    });
+
     test('throws when nothing matches', () {
       expect(() => ModOps.remove('zzz', AmmRecord(), game),
           throwsA(predicate((e) => e.toString() == 'No installed mod matches "zzz".')));
@@ -190,6 +199,18 @@ void main() {
           entry: catalog.find('fail')!, from: '1', to: '2', oldPaths: ['Mods/Old']);
       await expectLater(ModOps.upgrade(u, target()), throwsA(isA<ModDownloadException>()));
       expect(old.existsSync(), isTrue);
+    });
+
+    test('upgrade keeps the old mod when the download is not a zip', () async {
+      httpClient = MockClient((_) async => http.Response('<html>nope</html>', 200));
+      final old = Directory(p.join(game, 'Mods', 'Old'))..createSync(recursive: true);
+      final r = AmmRecord()
+        ..mods['ours'] = const RecordEntry(source: 'mods.json', version: '0', paths: ['Mods/Old']);
+      final u = Upgrade(
+          entry: catalog.find('ours')!, from: '0', to: 'v1.0', oldPaths: ['Mods/Old']);
+      await expectLater(ModOps.upgrade(u, target()), throwsA(anything));
+      expect(old.existsSync(), isTrue);
+      expect(r.mods['ours']!.paths, ['Mods/Old']);
     });
 
     test('upgrade replaces old paths after download', () async {
