@@ -1,0 +1,17 @@
+name: amm
+description: Command-line front end for the ADOFAI mod manager.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  amm_core:
+    path: ../core
+  args: ^2.5.0
+  path: ^1.9.0
+
+dev_dependencies:
+  test: ^1.25.0
+  lints: ^6.0.0
