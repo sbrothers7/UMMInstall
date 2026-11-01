@@ -111,14 +111,24 @@ Future<int> runCli(List<String> argv, {Ctx Function(bool yes)? makeCtx}) async {
     'uninstall' => uninstall(c),
     'default' => setDefault(c, cmd.rest.firstOrNull),
     'list' => list(c),
-    'search' when cmd.rest.isEmpty =>
-      Future.value(usageError('search needs a query.')),
+    'search' when cmd.rest.isEmpty => Future.value(
+      usageError('search needs a query.'),
+    ),
     'search' => search(c, cmd.rest.join(' ')),
+    'modinstall' when cmd.rest.isEmpty => Future.value(
+      usageError('modinstall needs at least one mod.'),
+    ),
+    'modinstall' => modinstall(c, cmd.rest),
+    'mr' when cmd.rest.isEmpty => Future.value(
+      usageError('mr needs at least one mod.'),
+    ),
+    'mr' => remove(c, cmd.rest, keep: cmd['keep'] as bool),
+    'upgrade' => upgrade(c, cmd.rest),
     _ => _notImplemented(c, name),
   };
 }
 
-// Tasks 9-10 replace these.
+// Task 10 replaces this.
 Future<int> _notImplemented(Ctx c, String name) async {
   c.out.line('$name: not implemented yet');
   return 1;

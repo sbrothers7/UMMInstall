@@ -45,8 +45,8 @@ void main() {
   });
 
   test('unimplemented command is stubbed', () async {
-    final (code, text) = await run(['upgrade']);
+    final (code, text) = await run(['tui']);
     expect(code, 1);
-    expect(text, contains('upgrade: not implemented yet'));
+    expect(text, contains('tui: not implemented yet'));
   });
 }

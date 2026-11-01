@@ -14,13 +14,11 @@ class Out {
     this.color = false,
     this.interactive = false,
     String? Function()? readLine,
-  })  : _sink = sink ?? stdout,
-        _readLine = readLine ?? stdin.readLineSync;
+  }) : _sink = sink ?? stdout,
+       _readLine = readLine ?? stdin.readLineSync;
 
-  factory Out.std() => Out(
-        color: stdout.hasTerminal,
-        interactive: stdin.hasTerminal,
-      );
+  factory Out.std() =>
+      Out(color: stdout.hasTerminal, interactive: stdin.hasTerminal);
 
   String _wrap(String code, String s) => color ? '\x1b[${code}m$s\x1b[0m' : s;
 
@@ -31,6 +29,18 @@ class Out {
       LogLevel.error => _wrap('31', '✗ $msg'),
       LogLevel.detail => _wrap('2', '    $msg'),
     });
+  }
+
+  /// Rewrites the current line as `  <label> 42%`; a no-op without a terminal.
+  /// The next [line] or [clearProgress] replaces it.
+  void progress(String label, double? fraction) {
+    if (!color) return;
+    final pct = fraction == null ? '' : ' ${(fraction * 100).round()}%';
+    _sink.write('\x1b[2K\r  $label$pct');
+  }
+
+  void clearProgress() {
+    if (color) _sink.write('\x1b[2K\r');
   }
 
   void subtitle(String s) => line(_wrap('1', s));

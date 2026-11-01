@@ -18,7 +18,7 @@ Method _currentMethod(GameFacts f) =>
     );
 
 /// Prints the not-found error; true when the game is there.
-bool _gameFound(Ctx c, GameFacts f) {
+bool gameFound(Ctx c, GameFacts f) {
   if (!f.found) {
     c.out.log(LogLevel.error, 'ADOFAI not found (looked in ${f.gamePath}).');
   }
@@ -29,7 +29,7 @@ bool _gameFound(Ctx c, GameFacts f) {
 /// prints the status.
 Future<int> install(Ctx c, {Method? method}) async {
   final f = await c.facts();
-  if (!_gameFound(c, f)) return 1;
+  if (!gameFound(c, f)) return 1;
   if (f.loader != LoaderKind.none) {
     final current = _currentMethod(f);
     printStatus(c, f, current);
@@ -57,7 +57,7 @@ Future<int> install(Ctx c, {Method? method}) async {
 /// switch to another one.
 Future<int> reinstall(Ctx c, {Method? method}) async {
   final f = await c.facts();
-  if (!_gameFound(c, f)) return 1;
+  if (!gameFound(c, f)) return 1;
   if (f.loader == LoaderKind.none) {
     c.out.line('No loader installed; installing.');
     return install(c, method: method);
@@ -124,7 +124,7 @@ Future<int> reinstall(Ctx c, {Method? method}) async {
 /// `amm uninstall`: removes the loader, leaves the mods where they are.
 Future<int> uninstall(Ctx c) async {
   final f = await c.facts();
-  if (!_gameFound(c, f)) return 1;
+  if (!gameFound(c, f)) return 1;
   if (f.loader == LoaderKind.none) {
     c.out.line('No mod loader installed.');
     return 0;

@@ -5,6 +5,9 @@ import 'package:amm/src/config.dart';
 import 'package:amm/src/context.dart';
 import 'package:amm/src/mod_commands.dart';
 import 'package:amm_core/amm_core.dart';
+import 'package:archive/archive.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:test/test.dart';
 
 import 'helpers.dart';
@@ -119,5 +122,127 @@ void main() {
   test('default refuses native on linux', () async {
     expect(await setDefault(ctx(facts(os: 'linux')), 'native'), 1);
     expect(Config.load(env: env.configEnv).defaultMethod, Method.ml);
+  });
+
+  // --- modinstall / mr / upgrade ---
+
+  ModlistMod mod(String slug, {List<String> deps = const [], String? v}) =>
+      ModlistMod(slug: slug, name: slug, version: v, dependencies: deps);
+
+  /// Serves a one-folder zip named after the requested slug.
+  void serveZips() {
+    httpClient = MockClient((req) async {
+      final slug = req.url.pathSegments[req.url.pathSegments.length - 2];
+      final a = Archive()
+        ..addFile(ArchiveFile.string('$slug/Info.json', '{"Id":"$slug"}'))
+        ..addFile(ArchiveFile.string('$slug/M.dll', 'a'));
+      return http.Response.bytes(ZipEncoder().encodeBytes(a), 200);
+    });
+  }
+
+  Ctx yesCtx(Catalog c, {GameFacts? f}) =>
+      env.ctx(facts: f ?? facts(), catalog: c, yes: true);
+
+  test('mi installs dependencies first and records both', () async {
+    serveZips();
+    final c = Catalog.merge([], [
+      mod('main', deps: ['dep'], v: '1.0'),
+      mod('dep', v: '2.0'),
+    ]);
+    expect(await modinstall(yesCtx(c), ['main']), 0);
+    final s = env.sink.toString();
+    expect(s, contains('Installing: dep (dependency), main'));
+    expect(s, contains('✓ dep 2.0'));
+    expect(s, contains('✓ main 1.0'));
+    final r = AmmRecord.load(game);
+    expect(r.mods.keys, containsAll(['main', 'dep']));
+    expect(Directory('$game/UMMMods/dep').existsSync(), isTrue);
+    expect(Directory('$game/UMMMods/main').existsSync(), isTrue);
+  });
+
+  test('mi with unknown slug installs nothing and exits 1', () async {
+    serveZips();
+    final c = Catalog.merge([], [mod('main')]);
+    expect(await modinstall(yesCtx(c), ['main', 'nope']), 1);
+    expect(
+      env.sink.toString(),
+      contains('Unknown mod(s): nope. Try `amm search`.'),
+    );
+    expect(Directory('$game/UMMMods/main').existsSync(), isFalse);
+  });
+
+  test('mi without loader exits 1', () async {
+    final c = Catalog.merge([], [mod('main')]);
+    final f = env.facts(); // LoaderKind.none
+    expect(await modinstall(yesCtx(c, f: f), ['main']), 1);
+    expect(
+      env.sink.toString(),
+      contains('No mod loader installed. Run `amm install` first.'),
+    );
+  });
+
+  test('mi keeps going after a failed mod and exits 1', () async {
+    httpClient = MockClient((req) async => http.Response('boom', 500));
+    final c = Catalog.merge([], [mod('main')]);
+    expect(await modinstall(yesCtx(c), ['main']), 1);
+    expect(env.sink.toString(), contains('✗ main: '));
+  });
+
+  void seedInstalled(String slug, String version) {
+    Directory('$game/UMMMods/$slug').createSync(recursive: true);
+    File('$game/UMMMods/$slug/M.dll').writeAsStringSync('old');
+    final r = AmmRecord.load(game);
+    r.mods[slug] = RecordEntry(
+      source: 'modlist.org',
+      version: version,
+      paths: ['UMMMods/$slug'],
+    );
+    r.save(game);
+  }
+
+  test('mr asks before deleting', () async {
+    seedInstalled('a', '1.0');
+    final c = env.ctx(facts: facts(), yes: false);
+    expect(await remove(c, ['a']), 1);
+    expect(env.sink.toString(), contains('Pass -y'));
+    expect(File('$game/UMMMods/a/M.dll').existsSync(), isTrue);
+  });
+
+  test('mr deletes with -y, reports a miss and exits 1', () async {
+    seedInstalled('a', '1.0');
+    expect(await remove(yesCtx(Catalog([])), ['a', 'zzz']), 1);
+    final s = env.sink.toString();
+    expect(s, contains('✗ No installed mod matches "zzz".'));
+    expect(Directory('$game/UMMMods/a').existsSync(), isFalse);
+    expect(AmmRecord.load(game).mods, isEmpty);
+  });
+
+  test('mr --keep archives', () async {
+    seedInstalled('a', '1.0');
+    expect(await remove(yesCtx(Catalog([])), ['a'], keep: true), 0);
+    expect(Directory('$game/UMMMods/a').existsSync(), isFalse);
+    expect(ModStore.scanArchived(), hasLength(1));
+  });
+
+  test('upgrade with one slug only touches that mod', () async {
+    serveZips();
+    seedInstalled('a', '1.0');
+    seedInstalled('b', '1.0');
+    final c = Catalog.merge([], [mod('a', v: '2.0'), mod('b', v: '2.0')]);
+    expect(await upgrade(yesCtx(c), ['A']), 0);
+    expect(env.sink.toString(), contains('Upgrading: a 1.0 → 2.0'));
+    final r = AmmRecord.load(game);
+    expect(r.mods['a']!.version, '2.0');
+    expect(r.mods['b']!.version, '1.0');
+  });
+
+  test('upgrade reports up to date', () async {
+    seedInstalled('a', '1.0');
+    final c = Catalog.merge([], [mod('a', v: '1.0')]);
+    expect(await upgrade(yesCtx(c), ['a']), 0);
+    expect(env.sink.toString(), contains('a is up to date.'));
+    env.sink.clear();
+    expect(await upgrade(yesCtx(c), []), 0);
+    expect(env.sink.toString(), contains('All mods are up to date.'));
   });
 }
