@@ -102,6 +102,21 @@ class PickerState {
   }
 }
 
+/// The methods the picker offers on [f]'s machine (Linux: ml only; macOS
+/// game v2: rosetta only) and the row to start on: [preselect] when offered.
+({List<Method> methods, int selected}) methodChoices(
+  GameFacts f, {
+  required Method preselect,
+}) {
+  final methods = f.os == 'linux'
+      ? [Method.ml]
+      : f.isV2
+      ? [Method.rosetta]
+      : Method.values;
+  final i = methods.indexOf(preselect);
+  return (methods: methods, selected: i < 0 ? 0 : i);
+}
+
 // --- IO below: raw mode, drawing and key reading. ---
 
 /// Splits a stdin chunk into keys: arrows stay whole, a lone ESC is esc.
@@ -251,14 +266,28 @@ Future<int> runTui(Ctx c) async {
     if (catalog != null) notes[MenuAction.upgrade] = '($n updates)';
   }
 
-  Future<List<String>?> pickMethod() async {
-    final linux = facts.os == 'linux';
-    final names = linux ? ['ml'] : [for (final m in Method.values) m.name];
-    final pre = linux ? 0 : Method.values.indexOf(c.config.defaultMethod);
-    final st = PickerState(names, preselected: {pre});
+  Future<Method?> pickMethod(Method preselect) async {
+    final ch = methodChoices(facts, preselect: preselect);
+    final st = PickerState(
+      [for (final m in ch.methods) m.name],
+      preselected: {ch.selected},
+    );
     if (!await t.pick(st, 'Method')) return null;
-    return [names[st.cursor]];
+    return ch.methods[st.cursor];
   }
+
+  /// Runs a command in line mode; a catalog that can't be fetched is printed
+  /// instead of thrown.
+  Future<void> run(Future<int> Function() command) => t.cookedFor(() async {
+    try {
+      await command();
+    } on ModRegistryException catch (e) {
+      c.out.log(LogLevel.error, e.message);
+    }
+  });
+
+  Future<void> say(String message) =>
+      t.cookedFor(() async => c.out.line(message));
 
   Future<List<String>?> pickMany(
     String title,
@@ -282,10 +311,14 @@ Future<int> runTui(Ctx c) async {
         done = true;
         return;
       case MenuAction.install || MenuAction.reinstall || MenuAction.setDefault:
-        final m = await pickMethod();
-        if (m == null) return;
-        final method = Method.parse(m.first)!;
-        await t.cookedFor(
+        // Reinstall starts on what is installed, so enter keeps it.
+        final method = await pickMethod(
+          a == MenuAction.reinstall && facts.loader != LoaderKind.none
+              ? currentMethod(facts)
+              : c.config.defaultMethod,
+        );
+        if (method == null) return;
+        await run(
           () => switch (a) {
             MenuAction.install => install(c, method: method),
             MenuAction.reinstall => reinstall(c, method: method),
@@ -293,9 +326,9 @@ Future<int> runTui(Ctx c) async {
           },
         );
       case MenuAction.uninstall:
-        await t.cookedFor(() => uninstall(c));
+        await run(() => uninstall(c));
       case MenuAction.list:
-        await t.cookedFor(() => list(c));
+        await run(() => list(c));
       case MenuAction.search:
         final q = await t.cookedFor(() async {
           stdout.write('Search: ');
@@ -316,8 +349,12 @@ Future<int> runTui(Ctx c) async {
           });
           break;
         }
+        if (hits.isEmpty) {
+          await say('No mods match "$q".');
+          break;
+        }
         final slugs = await pickMany(
-          hits.isEmpty ? 'No mods match "$q"' : 'Install which?',
+          'Install which?',
           [
             for (final e in hits)
               '${e.slug}  ${e.theirs?.version ?? e.ours?.version ?? '-'}  '
@@ -326,27 +363,54 @@ Future<int> runTui(Ctx c) async {
           [for (final e in hits) e.slug],
         );
         if (slugs == null) return;
-        await t.cookedFor(() => modinstall(c, slugs));
+        await run(() => modinstall(c, slugs));
       case MenuAction.remove:
-        final mods = [
-          for (final m in ModStore.scanInstalled())
+        final record = AmmRecord.load(facts.gamePath);
+        final mods = ModStore.scanInstalled();
+        final rows = [
+          for (final m in mods)
             p
                 .basename(m.path)
                 .replaceFirst(RegExp(r'\.dll$', caseSensitive: false), ''),
         ];
-        final names = await pickMany('Remove which?', mods, mods);
+        // A recorded mod is removed by its slug, so its record entry goes too.
+        final ids = [
+          for (final (i, m) in mods.indexed)
+            record.ownerSlug(
+                  p
+                      .relative(m.path, from: facts.gamePath)
+                      .replaceAll(p.separator, '/'),
+                ) ??
+                rows[i],
+        ];
+        final names = await pickMany('Remove which?', rows, ids);
         if (names == null) return;
-        await t.cookedFor(() => remove(c, names));
+        await run(() => remove(c, names.toSet().toList()));
       case MenuAction.upgrade:
-        final ups = await upgrades();
+        if (!facts.found || facts.loader == LoaderKind.none) {
+          await run(() => upgrade(c, [])); // prints why
+          break;
+        }
+        final List<Upgrade> ups;
+        try {
+          catalog ??= await c.catalog();
+          ups = await upgrades();
+        } on ModRegistryException catch (e) {
+          await t.cookedFor(() async => c.out.log(LogLevel.error, e.message));
+          break;
+        }
+        if (ups.isEmpty) {
+          await say('All mods are up to date.');
+          break;
+        }
         final slugs = await pickMany(
-          ups.isEmpty ? 'Everything is up to date' : 'Upgrade which?',
+          'Upgrade which?',
           [for (final u in ups) '${u.entry.slug}  ${u.from ?? '?'} → ${u.to}'],
           [for (final u in ups) u.entry.slug],
           all: true,
         );
         if (slugs == null) return;
-        await t.cookedFor(() => upgrade(c, slugs));
+        await run(() => upgrade(c, slugs));
     }
     stdout.write('\nPress any key to return.');
     await t.key();

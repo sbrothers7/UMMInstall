@@ -18,7 +18,7 @@ Commands:
   default [ml|native|rosetta]           Show or set the default method
   list (-l)                             List installed mods
   search (-s) <query>                   Search the mod catalog
-  modinstall (mi) <slug|url>...         Install mods
+  modinstall (mi) <slug>...             Install mods
   mr <name>... [--keep]                 Remove mods
   upgrade [<name>...]                   Upgrade mods
   tui                                   Interactive mode
@@ -104,28 +104,35 @@ Future<int> runCli(List<String> argv, {Ctx Function(bool yes)? makeCtx}) async {
   }
   final yes = (top['yes'] as bool) || (cmd['yes'] as bool);
   final name = cmd.name!;
-  final c = (makeCtx ?? (yes) => Ctx(yes: yes))(yes);
+  // The TUI's prompts are always asked; -y must not answer them.
+  final c = (makeCtx ?? (yes) => Ctx(yes: yes))(yes && name != 'tui');
   final method = methods.isEmpty ? null : Method.parse(methods.first);
-  return switch (name) {
-    'install' => install(c, method: method),
-    'reinstall' => reinstall(c, method: method),
-    'uninstall' => uninstall(c),
-    'default' => setDefault(c, cmd.rest.firstOrNull),
-    'list' => list(c),
-    'search' when cmd.rest.isEmpty => Future.value(
-      usageError('search needs a query.'),
-    ),
-    'search' => search(c, cmd.rest.join(' ')),
-    'modinstall' when cmd.rest.isEmpty => Future.value(
-      usageError('modinstall needs at least one mod.'),
-    ),
-    'modinstall' => modinstall(c, cmd.rest),
-    'mr' when cmd.rest.isEmpty => Future.value(
-      usageError('mr needs at least one mod.'),
-    ),
-    'mr' => remove(c, cmd.rest, keep: cmd['keep'] as bool),
-    'upgrade' => upgrade(c, cmd.rest),
-    'tui' => runTui(c),
-    _ => usageError('Unknown command "$name".'),
-  };
+  try {
+    return await switch (name) {
+      'install' => install(c, method: method),
+      'reinstall' => reinstall(c, method: method),
+      'uninstall' => uninstall(c),
+      'default' => setDefault(c, cmd.rest.firstOrNull),
+      'list' => list(c),
+      'search' when cmd.rest.isEmpty => Future.value(
+        usageError('search needs a query.'),
+      ),
+      'search' => search(c, cmd.rest.join(' ')),
+      'modinstall' when cmd.rest.isEmpty => Future.value(
+        usageError('modinstall needs at least one mod.'),
+      ),
+      'modinstall' => modinstall(c, cmd.rest),
+      'mr' when cmd.rest.isEmpty => Future.value(
+        usageError('mr needs at least one mod.'),
+      ),
+      'mr' => remove(c, cmd.rest, keep: cmd['keep'] as bool),
+      'upgrade' => upgrade(c, cmd.rest),
+      'tui' => runTui(c),
+      _ => usageError('Unknown command "$name".'),
+    };
+  } on ModRegistryException catch (e) {
+    // Neither catalog source could be reached.
+    c.out.log(LogLevel.error, e.message);
+    return 1;
+  }
 }

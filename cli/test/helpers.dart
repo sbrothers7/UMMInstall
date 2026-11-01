@@ -54,10 +54,12 @@ class TestEnv {
     loader: loader,
   );
 
+  /// [catalogError], when set, is what loading the catalog throws.
   Ctx ctx({
     GameFacts? facts,
     bool yes = true,
     Catalog? catalog,
+    Object? catalogError,
     Config? config,
   }) => Ctx(
     out: Out(sink: sink),
@@ -67,7 +69,8 @@ class TestEnv {
       calls.add(call);
       return scriptExit;
     },
-    catalog: () async => catalog ?? Catalog([]),
+    catalog: () async =>
+        catalogError == null ? catalog ?? Catalog([]) : throw catalogError,
     yes: yes,
   );
 }

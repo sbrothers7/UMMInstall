@@ -1,4 +1,5 @@
 import 'package:amm/src/tui.dart';
+import 'package:amm_core/amm_core.dart';
 import 'package:test/test.dart';
 
 const up = '\x1b[A';
@@ -66,6 +67,35 @@ void main() {
     p.handle(' ');
     expect(p.chosen, {0});
     expect(p.render('T'), contains('[x] a'));
+  });
+
+  GameFacts facts({String os = 'macos', int major = 3}) => GameFacts(
+    os: os,
+    found: true,
+    gamePath: '/g',
+    version: null,
+    major: major,
+    appleSilicon: true,
+    hasArm64Slice: true,
+    loader: LoaderKind.none,
+  );
+
+  test('methodChoices offers every method on v3 and preselects', () {
+    final m = methodChoices(facts(), preselect: Method.native);
+    expect(m.methods, Method.values);
+    expect(m.selected, 1);
+  });
+
+  test('methodChoices offers only rosetta on macOS v2', () {
+    final m = methodChoices(facts(major: 2), preselect: Method.ml);
+    expect(m.methods, [Method.rosetta]);
+    expect(m.selected, 0);
+  });
+
+  test('methodChoices offers only ml on linux', () {
+    final m = methodChoices(facts(os: 'linux'), preselect: Method.rosetta);
+    expect(m.methods, [Method.ml]);
+    expect(m.selected, 0);
   });
 
   test('picker enter returns true, q returns false', () {

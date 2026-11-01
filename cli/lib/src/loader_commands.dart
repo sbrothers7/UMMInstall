@@ -8,14 +8,18 @@ import 'context.dart';
 String _loaderName(Method m) =>
     m == Method.ml ? 'MelonLoader' : 'Unity Mod Manager';
 
-Method _currentMethod(GameFacts f) =>
-    AmmRecord.load(f.gamePath).method ??
-    inferMethod(
-      loader: f.loader,
-      isV2: f.isV2,
-      appleSilicon: f.appleSilicon,
-      hasArm64Slice: f.hasArm64Slice,
-    );
+/// The installed loader's method: the recorded one unless the loader on
+/// disk contradicts it.
+Method currentMethod(GameFacts f) => installedMethod(
+  recorded: AmmRecord.load(f.gamePath).method,
+  loader: f.loader,
+  isV2: f.isV2,
+  appleSilicon: f.appleSilicon,
+  hasArm64Slice: f.hasArm64Slice,
+);
+
+/// UMM on Linux has no uninstall script; the ml install script clears it.
+bool _linuxUmm(GameFacts f) => f.os == 'linux' && f.loader == LoaderKind.umm;
 
 /// Prints the not-found error; true when the game is there.
 bool gameFound(Ctx c, GameFacts f) {
@@ -31,7 +35,7 @@ Future<int> install(Ctx c, {Method? method}) async {
   final f = await c.facts();
   if (!gameFound(c, f)) return 1;
   if (f.loader != LoaderKind.none) {
-    final current = _currentMethod(f);
+    final current = currentMethod(f);
     printStatus(c, f, current);
     if (method != null && method != current) {
       c.out.line('To switch, run: amm reinstall --${method.name}');
@@ -62,9 +66,10 @@ Future<int> reinstall(Ctx c, {Method? method}) async {
     c.out.line('No loader installed; installing.');
     return install(c, method: method);
   }
-  final current = _currentMethod(f);
+  final current = currentMethod(f);
   final target = method ?? current;
-  if (target == current) {
+  final linuxUmm = _linuxUmm(f);
+  if (target == current && !linuxUmm) {
     if (!c.out.confirm(
       'Reinstall ${_loaderName(current)} (${current.name})? Mods stay in place.',
       yes: c.yes,
@@ -108,16 +113,19 @@ Future<int> reinstall(Ctx c, {Method? method}) async {
       return 1;
     case Proceed(:final method, :final confirm):
       final extra = confirm == null ? '' : ' $confirm';
+      final from = linuxUmm ? _loaderName(current) : current.name;
       if (!c.out.confirm(
-        'Switch from ${current.name} to ${method.name}? This uninstalls '
-        '${current.name}, installs ${method.name}, then offers to move your '
-        'mods.$extra',
+        'Switch from $from to ${method.name}? This uninstalls $from, installs '
+        '${method.name}, then offers to move your mods.$extra',
         yes: c.yes,
       )) {
         return 1;
       }
-      final code = await _uninstallCurrent(c, f, current);
-      return code != 0 ? code : _installMethod(c, f, method);
+      if (!linuxUmm) {
+        final code = await _uninstallCurrent(c, f, current);
+        if (code != 0) return code;
+      }
+      return _installMethod(c, f, method);
   }
 }
 
@@ -129,7 +137,15 @@ Future<int> uninstall(Ctx c) async {
     c.out.line('No mod loader installed.');
     return 0;
   }
-  final current = _currentMethod(f);
+  if (_linuxUmm(f)) {
+    c.out.log(
+      LogLevel.error,
+      "Unity Mod Manager uninstall isn't supported on Linux; run "
+      '`amm reinstall --ml` to switch to MelonLoader.',
+    );
+    return 1;
+  }
+  final current = currentMethod(f);
   if (!c.out.confirm(
     'Remove ${_loaderName(current)} from ${f.gamePath}? Mods stay in place.',
     yes: c.yes,
@@ -155,6 +171,8 @@ void printStatus(Ctx c, GameFacts f, Method current) {
       switch (f.loader) {
         LoaderKind.none => 'none',
         LoaderKind.melonLoader => 'MelonLoader (ml)',
+        // Linux has no UMM methods to tell apart.
+        LoaderKind.umm when f.os == 'linux' => 'Unity Mod Manager',
         LoaderKind.umm => 'Unity Mod Manager (${current.name})',
       },
     ),
@@ -198,6 +216,7 @@ Future<int> _runLoaderScript(
 }
 
 Future<int> _installMethod(Ctx c, GameFacts f, Method m) async {
+  c.out.line('Installing ${_loaderName(m)} (${m.name}) into ${f.gamePath}…');
   final code = await _runLoaderScript(
     c,
     InstallScripts.install(m, os: f.os, gamePath: f.gamePath),

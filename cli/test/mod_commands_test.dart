@@ -71,6 +71,11 @@ void main() {
     expect(lines[3], '1 archived (restore them in the GUI)');
   });
 
+  test('list with no mods says so', () async {
+    expect(await list(ctx(facts())), 0);
+    expect(env.sink.toString(), 'No mods installed.\n');
+  });
+
   Catalog cat() => Catalog.merge(
     [
       const Mod(id: 'Good', slug: 'good', url: 'u'),
@@ -129,10 +134,12 @@ void main() {
   ModlistMod mod(String slug, {List<String> deps = const [], String? v}) =>
       ModlistMod(slug: slug, name: slug, version: v, dependencies: deps);
 
-  /// Serves a one-folder zip named after the requested slug.
-  void serveZips() {
+  /// Serves a one-folder zip named after the requested slug; [offline] fails
+  /// as a dropped connection.
+  void serveZips({String? offline}) {
     httpClient = MockClient((req) async {
       final slug = req.url.pathSegments[req.url.pathSegments.length - 2];
+      if (slug == offline) throw http.ClientException('offline');
       final a = Archive()
         ..addFile(ArchiveFile.string('$slug/Info.json', '{"Id":"$slug"}'))
         ..addFile(ArchiveFile.string('$slug/M.dll', 'a'));
@@ -188,6 +195,16 @@ void main() {
     expect(env.sink.toString(), contains('✗ main: '));
   });
 
+  test('mi continues after a ClientException on one mod', () async {
+    serveZips(offline: 'aa');
+    final c = Catalog.merge([], [mod('aa', v: '1'), mod('bb', v: '1')]);
+    expect(await modinstall(yesCtx(c), ['aa', 'bb']), 1);
+    final s = env.sink.toString();
+    expect(s, contains('✗ aa: Download failed: offline'));
+    expect(s, contains('✓ bb 1'));
+    expect(Directory('$game/UMMMods/bb').existsSync(), isTrue);
+  });
+
   void seedInstalled(String slug, String version) {
     Directory('$game/UMMMods/$slug').createSync(recursive: true);
     File('$game/UMMMods/$slug/M.dll').writeAsStringSync('old');
@@ -234,6 +251,15 @@ void main() {
     final r = AmmRecord.load(game);
     expect(r.mods['a']!.version, '2.0');
     expect(r.mods['b']!.version, '1.0');
+  });
+
+  test('upgrade of a mod that is not installed says so', () async {
+    final c = Catalog.merge([], [mod('a', v: '1.0')]);
+    expect(await upgrade(yesCtx(c), ['a']), 0);
+    expect(
+      env.sink.toString(),
+      contains("a is not installed (or amm can't tell where it came from)."),
+    );
   });
 
   test('upgrade reports up to date', () async {

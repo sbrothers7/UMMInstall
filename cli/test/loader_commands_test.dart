@@ -83,6 +83,41 @@ void main() {
     );
   });
 
+  test(
+    'install umm moves UMMMods back to Mods and rewrites record paths',
+    () async {
+      File('${env.game.path}/UMMMods/A/Info.json')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('{}');
+      File('${env.game.path}/Mods/X.dll')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('x');
+      (AmmRecord()
+            ..mods['a'] = const RecordEntry(
+              source: 'mods.json',
+              paths: ['UMMMods/A'],
+            ))
+          .save(env.game.path);
+      expect(await install(env.ctx(), method: Method.native), 0);
+      expect(env.calls, [inst(Method.native)]);
+      expect(Directory('${env.game.path}/Mods/A').existsSync(), isTrue);
+      expect(Directory('${env.game.path}/UMMMods/A').existsSync(), isFalse);
+      expect(record().mods['a']!.paths, ['Mods/A']);
+      expect(
+        env.sink.toString(),
+        contains("MelonLoader mods in Mods/ won't load under UMM."),
+      );
+    },
+  );
+
+  test('install says what it will change', () async {
+    expect(await install(env.ctx(), method: Method.ml), 0);
+    expect(
+      env.sink.toString(),
+      contains('Installing MelonLoader (ml) into ${env.game.path}…'),
+    );
+  });
+
   test('install ml sets Steam launch options when a config exists', () async {
     final cfg = File('${env.tmp.path}/steam/userdata/1/config/localconfig.vdf')
       ..createSync(recursive: true)
@@ -144,6 +179,37 @@ void main() {
       expect(s, contains('Then run: amm install --ml'));
     },
   );
+
+  GameFacts linuxUmm() =>
+      env.facts(os: 'linux', loader: LoaderKind.umm, appleSilicon: false);
+
+  test('linux status shows UMM without a method', () async {
+    expect(await install(env.ctx(facts: linuxUmm())), 0);
+    expect(env.sink.toString(), contains('Loader:  Unity Mod Manager\n'));
+  });
+
+  test(
+    'linux reinstall --ml over UMM runs only the ml install script',
+    () async {
+      expect(await reinstall(env.ctx(facts: linuxUmm()), method: Method.ml), 0);
+      expect(env.calls, [
+        InstallScripts.install(Method.ml, os: 'linux', gamePath: env.game.path),
+      ]);
+      expect(record().method, Method.ml);
+    },
+  );
+
+  test('linux uninstall with UMM explains and exits 1', () async {
+    expect(await uninstall(env.ctx(facts: linuxUmm())), 1);
+    expect(env.calls, isEmpty);
+    expect(
+      env.sink.toString(),
+      contains(
+        "Unity Mod Manager uninstall isn't supported on Linux; run "
+        '`amm reinstall --ml` to switch to MelonLoader.',
+      ),
+    );
+  });
 
   test('uninstall without loader exits 0', () async {
     expect(await uninstall(env.ctx()), 0);

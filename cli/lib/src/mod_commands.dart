@@ -43,6 +43,7 @@ Future<int> list(Ctx c) async {
       owner?.source ?? '-',
     ]);
   }
+  if (rows.isEmpty) c.out.line('No mods installed.');
   for (final line in _table(rows)) {
     c.out.line(line);
   }
@@ -227,7 +228,12 @@ Future<int> upgrade(Ctx c, List<String> slugs) async {
       if (asked.isEmpty || asked.contains(u.entry.slug)) u,
   ];
   for (final s in asked) {
-    if (!todo.any((u) => u.entry.slug == s)) c.out.line('$s is up to date.');
+    if (todo.any((u) => u.entry.slug == s)) continue;
+    c.out.line(
+      scan.installed.contains(s)
+          ? '$s is up to date.'
+          : "$s is not installed (or amm can't tell where it came from).",
+    );
   }
   if (todo.isEmpty && asked.isEmpty) c.out.line('All mods are up to date.');
   if (todo.isNotEmpty) {
