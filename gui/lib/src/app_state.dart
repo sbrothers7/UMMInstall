@@ -526,6 +526,9 @@ class AppState extends ChangeNotifier {
   }
 
   void moveMigratableMods() {
+    // Load before moving: loading drops entries whose paths are gone.
+    final root = GamePaths.gamePath;
+    final record = AmmRecord.load(root);
     final moved = ModStore.moveMods(
         migratableMods, GamePaths.ummModsPath, GamePaths.melonModsPath,
         onError: (name, e) {
@@ -533,8 +536,7 @@ class AppState extends ChangeNotifier {
       log(LogLevel.detail, e.toString());
     });
     try {
-      final root = GamePaths.gamePath;
-      AmmRecord.load(root)
+      record
         ..movePaths('Mods', 'UMMMods', moved)
         ..save(root);
     } catch (e) {
