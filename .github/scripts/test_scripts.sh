@@ -71,7 +71,8 @@ bash "$ROOT/linux/adofai-melonloader-uninstall.sh" "$GAME" >/dev/null
 if bash "$ROOT/linux/adofai-melonloader.sh" >/dev/null 2>&1; then fail "no-arg install succeeded"; fi
 
 # CLI release: asset names must be the bare binaries, and install.sh must
-# install amm plus the ammtui symlink (curl stubbed, nothing downloaded).
+# install amm plus the ammtui symlink and add it to PATH once (curl stubbed,
+# nothing downloaded, HOME sandboxed).
 bash -n "$ROOT/cli/install.sh"
 targets="$(sed -n '/^  cli:/,$p' "$ROOT/.github/workflows/release-gui.yml" | grep -o 'target: [a-z0-9-]*' | sed 's/target: /amm-/' | sort | tr '\n' ' ')"
 [ "$targets" = "amm-darwin-arm64 amm-darwin-x64 amm-linux-x64 " ] || fail "cli targets: $targets"
@@ -79,12 +80,16 @@ for t in $targets; do
     echo "$t" | grep -Eq '^amm-(darwin-arm64|darwin-x64|linux-x64)$' || fail "asset name $t"
     case "$t" in *.zip) fail "$t is a zip" ;; esac
 done
-mkdir "$TMP/bin2" "$TMP/inst"
+mkdir "$TMP/bin2" "$TMP/inst" "$TMP/home"
 printf '#!/bin/sh\nout=""\nwhile [ $# -gt 0 ]; do [ "$1" = -o ] && out="$2"; shift; done\nprintf "#!/bin/sh\\necho stub\\n" > "$out"\n' > "$TMP/bin2/curl"
 printf '#!/bin/sh\n[ "$1" = -s ] && echo Linux || echo x86_64\n' > "$TMP/bin2/uname"
 chmod +x "$TMP/bin2/curl" "$TMP/bin2/uname"
-PATH="$TMP/bin2:$PATH" AMM_INSTALL_DIR="$TMP/inst" bash "$ROOT/cli/install.sh" >/dev/null
+for _ in 1 2; do
+    PATH="$TMP/bin2:$PATH" HOME="$TMP/home" SHELL=/bin/bash AMM_INSTALL_DIR="$TMP/inst" \
+        bash "$ROOT/cli/install.sh" >/dev/null
+done
 [ -x "$TMP/inst/amm" ] || fail "amm not installed"
 [ -L "$TMP/inst/ammtui" ] || fail "ammtui link"
+[ "$(grep -cxF "export PATH=\"$TMP/inst:\$PATH\"" "$TMP/home/.bashrc")" = 1 ] || fail "PATH line in .bashrc"
 
 echo "scripts ok"
