@@ -435,13 +435,12 @@ class AppState extends ChangeNotifier {
   Future<void> _runUninstall() async {
     final melon = hasMelonLoader;
     final name = melon ? 'MelonLoader' : 'Unity Mod Manager';
-    final call = InstallScripts.uninstall(
-        AmmRecord.load(GamePaths.gamePath).method ??
-            inferMethod(
-                loader: melon ? LoaderKind.melonLoader : LoaderKind.umm,
-                isV2: isGameV2,
-                appleSilicon: GamePaths.isAppleSilicon(),
-                hasArm64Slice: GamePaths.hasArm64Slice()));
+    final call = InstallScripts.uninstall(installedMethod(
+        recorded: AmmRecord.load(GamePaths.gamePath).method,
+        loader: melon ? LoaderKind.melonLoader : LoaderKind.umm,
+        isV2: isGameV2,
+        appleSilicon: GamePaths.isAppleSilicon(),
+        hasArm64Slice: GamePaths.hasArm64Slice()));
     if (call == null) {
       log(LogLevel.error, t("$name uninstall isn't supported on this platform yet.",
           '$name 제거는 아직 이 플랫폼에서 지원되지 않습니다.'));
@@ -476,13 +475,12 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _runMigration() async {
-    final unCall = InstallScripts.uninstall(
-        AmmRecord.load(GamePaths.gamePath).method ??
-            inferMethod(
-                loader: LoaderKind.umm,
-                isV2: isGameV2,
-                appleSilicon: GamePaths.isAppleSilicon(),
-                hasArm64Slice: GamePaths.hasArm64Slice()));
+    final unCall = InstallScripts.uninstall(installedMethod(
+        recorded: AmmRecord.load(GamePaths.gamePath).method,
+        loader: LoaderKind.umm,
+        isV2: isGameV2,
+        appleSilicon: GamePaths.isAppleSilicon(),
+        hasArm64Slice: GamePaths.hasArm64Slice()));
     final inCall = InstallScripts.install(Method.ml);
     if (unCall == null || inCall == null) {
       log(LogLevel.error, t("Migration isn't supported on this platform yet.",
@@ -534,6 +532,14 @@ class AppState extends ChangeNotifier {
       log(LogLevel.error, t('Failed to move $name.', '$name 이동 실패.'));
       log(LogLevel.detail, e.toString());
     });
+    try {
+      final root = GamePaths.gamePath;
+      AmmRecord.load(root)
+        ..movePaths('Mods', 'UMMMods', moved)
+        ..save(root);
+    } catch (e) {
+      log(LogLevel.detail, e.toString());
+    }
     log(LogLevel.ok, t('Moved ${moved.length} mod(s) to UMMMods/.', '${moved.length}개 모드를 UMMMods/로 이동했습니다.'));
     migratableMods = [];
     _complete(true, t('Migration complete.', '마이그레이션 완료.'));
