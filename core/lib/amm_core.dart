@@ -1,3 +1,4 @@
+export 'src/game_state.dart';
 export 'src/install/install_scripts.dart';
 export 'src/install/mod_downloader.dart';
 export 'src/install/script_runner.dart';

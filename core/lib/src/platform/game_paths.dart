@@ -21,6 +21,9 @@ class GamePaths {
     _cachedGamePath = await _detectGamePath();
   }
 
+  /// Sets the cached game path (for tests); null clears it.
+  static void overrideGamePath(String? path) => _cachedGamePath = path;
+
   static String get gamePath => _cachedGamePath ?? _defaultGamePath;
 
   /// Best-guess default used before [detect] runs or if discovery fails.
@@ -184,6 +187,44 @@ class GamePaths {
       return null;
     }
     // TODO: Windows/Linux version detection.
+    return null;
+  }
+
+  /// Maps the Unity version found in [header] to the game's major version:
+  /// Unity 6000.x is game v3, Unity 2022.x is game v2, anything else null.
+  static int? unityMajorToGameMajor(List<int> header) {
+    final m = RegExp(
+      r'\d{4}\.\d+\.\d+[a-z]\d+',
+    ).firstMatch(String.fromCharCodes(header));
+    if (m == null) return null;
+    final v = m.group(0)!;
+    if (v.startsWith('6')) return 3;
+    if (v.startsWith('20')) return 2;
+    return null;
+  }
+
+  /// The game's major version: from the app bundle on macOS, from the Unity
+  /// version in globalgamemanagers on Linux; null when unreadable.
+  static Future<int?> detectGameMajor() async {
+    if (Platform.isMacOS) {
+      final v = await detectGameVersion();
+      return v == null
+          ? null
+          : int.tryParse(RegExp(r'^\d+').stringMatch(v) ?? '');
+    }
+    if (Platform.isLinux) {
+      final f = File(
+        p.join(gamePath, 'A Dance of Fire and Ice_Data', 'globalgamemanagers'),
+      );
+      try {
+        final raf = await f.open();
+        try {
+          return unityMajorToGameMajor(await raf.read(4096));
+        } finally {
+          await raf.close();
+        }
+      } catch (_) {}
+    }
     return null;
   }
 }
