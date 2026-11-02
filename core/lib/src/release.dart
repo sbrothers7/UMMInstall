@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ffi' show Abi;
 import 'dart:io';
 
 import 'net.dart';
@@ -26,6 +27,22 @@ class GithubRelease {
       for (final a in ((j['assets'] as List?) ?? const []).cast<Map<String, dynamic>>())
         a['name'] as String: a['browser_download_url'] as String,
     });
+  }
+
+  /// This platform's GUI download (the macOS .zip or the Linux .tar.gz), or
+  /// null when the release has none for this machine.
+  String? get guiAsset {
+    final suffix = switch (Platform.operatingSystem) {
+      'macos' => '-macos.zip',
+      // Only an x64 Linux build ships.
+      'linux' => Abi.current() == Abi.linuxX64 ? '-linux.tar.gz' : null,
+      _ => '-windows.zip',
+    };
+    if (suffix == null) return null;
+    return [
+      for (final MapEntry(:key, :value) in assets.entries)
+        if (key.endsWith(suffix)) value,
+    ].firstOrNull;
   }
 }
 

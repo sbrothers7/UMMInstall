@@ -1,3 +1,5 @@
+import 'record.dart';
+
 enum LogLevel { info, ok, error, detail }
 
 enum LoaderType { umm, melonLoader }
@@ -36,15 +38,20 @@ class InstalledMod {
 class ArchivedMod {
   final String name;
   final String key; // archive subfolder name
-  final String originPath; // where to restore it to
-  final bool isDirectory;
-  final String payloadPath; // the preserved item inside the archive
+
+  /// (where to restore it to, the preserved copy inside the archive): one
+  /// pair for a file or folder, one per path for a recorded mod.
+  final List<(String, String)> items;
+
+  /// Set for a recorded mod: its slug and record entry, put back on restore.
+  final String? slug;
+  final RecordEntry? record;
 
   const ArchivedMod({
     required this.name,
     required this.key,
-    required this.originPath,
-    required this.isDirectory,
-    required this.payloadPath,
+    required this.items,
+    this.slug,
+    this.record,
   });
 }

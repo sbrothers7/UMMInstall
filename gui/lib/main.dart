@@ -3,8 +3,12 @@ import 'package:flutter/material.dart';
 import 'src/app_state.dart';
 import 'src/ui/app_scope.dart';
 import 'src/ui/content_view.dart';
+import 'src/updater.dart';
 
-void main() => runApp(const AdofaiModInstallerApp());
+void main() {
+  Updater.writeDesktopEntry();
+  runApp(const AdofaiModInstallerApp());
+}
 
 class AdofaiModInstallerApp extends StatefulWidget {
   const AdofaiModInstallerApp({super.key});
@@ -39,6 +43,9 @@ class _AppRootState extends State<AdofaiModInstallerApp> {
         theme: ThemeData(
           useMaterial3: true,
           brightness: Brightness.dark,
+          // Linux doesn't fall back to a Korean font on its own (boxes in
+          // the KR strings); name the common ones. macOS ignores these.
+          fontFamilyFallback: const ['Noto Sans CJK KR', 'Noto Sans KR', 'NanumGothic'],
           colorScheme: ColorScheme.fromSeed(
             seedColor: const Color(0xFF5B8DEF),
             brightness: Brightness.dark,

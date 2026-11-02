@@ -15,6 +15,15 @@ class RecordEntry {
 
   const RecordEntry({required this.source, this.version, required this.paths});
 
+  factory RecordEntry.fromJson(Map<String, dynamic> e) => RecordEntry(
+        source: e['source'] as String,
+        version: e['version'] as String?,
+        paths: (e['paths'] as List).cast<String>(),
+      );
+
+  Map<String, dynamic> toJson() =>
+      {'source': source, 'version': version, 'paths': paths};
+
   /// Whether [relPath] is one of [paths] or inside one.
   bool owns(String relPath) =>
       paths.any((q) => relPath == q || relPath.startsWith('$q/'));
@@ -41,14 +50,9 @@ class AmmRecord {
       final m = j['method'] as String?;
       rec.method = m == null ? null : Method.parse(m);
       (j['mods'] as Map<String, dynamic>? ?? {}).forEach((slug, v) {
-        final e = v as Map<String, dynamic>;
-        final paths = (e['paths'] as List).cast<String>();
-        if (!paths.any((q) => _exists(gameRoot, q))) return;
-        rec.mods[slug] = RecordEntry(
-          source: e['source'] as String,
-          version: e['version'] as String?,
-          paths: paths,
-        );
+        final e = RecordEntry.fromJson(v as Map<String, dynamic>);
+        if (!e.paths.any((q) => _exists(gameRoot, q))) return;
+        rec.mods[slug] = e;
       });
       return rec;
     } catch (_) {
@@ -70,14 +74,7 @@ class AmmRecord {
     f.parent.createSync(recursive: true);
     f.writeAsStringSync(const JsonEncoder.withIndent('  ').convert({
       'method': method?.name,
-      'mods': {
-        for (final e in mods.entries)
-          e.key: {
-            'source': e.value.source,
-            'version': e.value.version,
-            'paths': e.value.paths,
-          },
-      },
+      'mods': {for (final e in mods.entries) e.key: e.value.toJson()},
     }));
   }
 

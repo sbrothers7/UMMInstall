@@ -55,17 +55,10 @@ class InstalledView extends StatelessWidget {
             ),
           if (canMigrate) const SizedBox(height: 10),
           _BigButton(
-            icon: Icons.download,
-            label: state.t('Install Mods', '모드 설치'),
+            icon: Icons.extension,
+            label: state.t('Mods', '모드'),
             filled: !canMigrate,
-            onPressed: () => state.proceedFromInstalled(),
-          ),
-          const SizedBox(height: 10),
-          _BigButton(
-            icon: Icons.playlist_remove,
-            label: state.t('Manage Mods', '모드 관리'),
-            filled: false,
-            onPressed: () => state.openManageMods(),
+            onPressed: () => state.openMods(),
           ),
           const SizedBox(height: 10),
           _BigButton(

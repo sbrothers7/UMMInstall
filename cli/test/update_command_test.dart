@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ffi' show Abi;
 import 'dart:io';
 
 import 'package:amm/src/update_command.dart';
@@ -11,7 +12,8 @@ import 'helpers.dart';
 
 const runs = '#!/bin/sh\nexit 0\n';
 const id = 'com.sbrothers.adofaiModInstaller';
-final notMac = Platform.isMacOS ? false : 'the GUI is macOS only';
+final notMac = Platform.isMacOS ? false : 'macOS GUI';
+final notLinux = Abi.current() == Abi.linuxX64 ? false : 'Linux x64 GUI';
 
 void main() {
   late TestEnv env;
@@ -148,6 +150,67 @@ void main() {
     expect(await update(env.ctx()), 0);
     expect(env.sink.toString(), contains('GUI 99.0.0 is up to date ($mine).'));
   }, skip: notMac);
+
+  /// A Linux GUI folder at [dir] reporting [version], with a [marker] file
+  /// in its data folder.
+  void linuxGui(String dir, String version, String marker) {
+    File('$dir/adofai_mod_installer').createSync(recursive: true);
+    File('$dir/data/$marker').createSync(recursive: true);
+    File('$dir/data/flutter_assets/version.json')
+      ..createSync(recursive: true)
+      ..writeAsStringSync(jsonEncode({'version': version}));
+  }
+
+  void menuEntry(String path) =>
+      File('${env.tmp.path}/Apps/com.sbrothers.adofai_mod_installer.desktop')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('[Desktop Entry]\nExec="$path/x"\nPath=$path\n');
+
+  test('update swaps the Linux GUI its menu entry points at', () async {
+    final mine = '${env.tmp.path}/opt/My GUI';
+    linuxGui(mine, '1.0.0', 'old');
+    menuEntry(mine);
+    linuxGui('${env.tmp.path}/src/adofai-mod-installer', '99.0.0', 'new');
+    final tgz = '${env.tmp.path}/gui.tar.gz';
+    final src = '${env.tmp.path}/src';
+    Process.runSync('tar', ['-czf', tgz, '-C', src, 'adofai-mod-installer']);
+    release('v99.0.0', {
+      ammAsset()!: utf8.encode(runs),
+      'ADOFAIModInstaller-linux.tar.gz': File(tgz).readAsBytesSync(),
+    });
+
+    expect(await update(env.ctx()), 0);
+    expect(File('$mine/data/new').existsSync(), isTrue);
+    expect(File('$mine/data/old').existsSync(), isFalse);
+    expect(leftovers('${env.tmp.path}/opt'), isEmpty);
+    expect(env.sink.toString(), contains('GUI 1.0.0 → 99.0.0 ($mine)'));
+  }, skip: notLinux);
+
+  test('update leaves a Linux GUI folder that holds other files alone', () async {
+    final mine = '${env.tmp.path}/Games';
+    linuxGui(mine, '1.0.0', 'old');
+    File('$mine/save.dat').writeAsStringSync('mine');
+    menuEntry(mine);
+    linuxGui('${env.tmp.path}/src/adofai-mod-installer', '99.0.0', 'new');
+    final tgz = '${env.tmp.path}/gui.tar.gz';
+    Process.runSync('tar', ['-czf', tgz, '-C', '${env.tmp.path}/src', 'adofai-mod-installer']);
+    release('v99.0.0', {
+      ammAsset()!: utf8.encode(runs),
+      'ADOFAIModInstaller-linux.tar.gz': File(tgz).readAsBytesSync(),
+    });
+
+    expect(await update(env.ctx()), 1);
+    expect(File('$mine/save.dat').readAsStringSync(), 'mine');
+    expect(File('$mine/data/old').existsSync(), isTrue);
+    expect(env.sink.toString(), contains('save.dat'));
+  }, skip: notLinux);
+
+  test('update ignores a Linux menu entry whose folder is gone', () async {
+    menuEntry('${env.tmp.path}/gone');
+    release('v99.0.0', {ammAsset()!: utf8.encode(runs)});
+    expect(await update(env.ctx()), 0);
+    expect(env.sink.toString(), isNot(contains('GUI')));
+  }, skip: notLinux);
 
   test('update keeps the GUI when the download has no app', () async {
     final apps = '${env.tmp.path}/Apps';

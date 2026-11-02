@@ -4,9 +4,8 @@ import '../models.dart';
 import 'app_scope.dart';
 import 'confirm_view.dart';
 import 'installed_view.dart';
-import 'manage_mods_view.dart';
 import 'needs_verify_view.dart';
-import 'mod_picker_view.dart';
+import 'mods_view.dart';
 import 'progress_view.dart';
 import 'updating_view.dart';
 
@@ -27,10 +26,8 @@ class ContentView extends StatelessWidget {
         body = const NeedsVerifyView();
       case InstallPhase.installed:
         body = const InstalledView();
-      case InstallPhase.picker:
-        body = const ModPickerView();
-      case InstallPhase.manageMods:
-        body = const ManageModsView();
+      case InstallPhase.mods:
+        body = const ModsView();
       case InstallPhase.installingBrew:
       case InstallPhase.installing:
       case InstallPhase.uninstalling:

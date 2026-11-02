@@ -66,7 +66,23 @@ class UpgradeScan {
   const UpgradeScan(this.upgrades, this.unknown, this.installed);
 }
 
-/// Install, remove and upgrade mods; the logic behind `amm modinstall`,
+/// One card on the GUI's Installed tab.
+class InstalledItem {
+  final String name;
+
+  /// Record key or catalog match; null for a file nothing knows.
+  final String? slug;
+  final String? version;
+  final CatalogEntry? entry;
+
+  /// Set when no record entry owns it: remove by this path, not by slug.
+  final InstalledMod? file;
+
+  const InstalledItem(
+      {required this.name, this.slug, this.version, this.entry, this.file});
+}
+
+/// Install, remove and upgrade mods; the logic behind `amm install --mod`,
 /// `amm mr` and `amm upgrade`. Callers save the [AmmRecord].
 class ModOps {
   static InstallPlan plan(Catalog c, List<String> slugs, AmmRecord r) {
@@ -175,9 +191,11 @@ class ModOps {
   }
 
   /// Removes the mod and drops its record entry; returns the relative paths
-  /// removed. [keep] archives instead of deleting.
+  /// removed. [keep] archives instead of deleting: a recorded mod as one
+  /// archive entry called [name] (default: the slug), restorable with
+  /// [restore].
   static List<String> remove(String slug, AmmRecord r, String gameRoot,
-      {bool keep = false}) {
+      {bool keep = false, String? name}) {
     final s = slug.toLowerCase();
     final key = r.mods.keys.where((k) => k.toLowerCase() == s).firstOrNull;
     final rel = <String>[];
@@ -197,19 +215,38 @@ class ModOps {
     }
     if (rel.isEmpty) throw ModOpsException('No installed mod matches "$slug".');
     final abss = [for (final path in rel) _inside(gameRoot, path)];
-    for (final abs in abss) {
-      if (keep) {
+    if (keep && key != null) {
+      ModStore.archiveRecorded(name ?? key, key, r.mods[key]!, abss, gameRoot);
+    } else {
+      for (final abs in abss) {
+        if (keep) {
         ModStore.archive(InstalledMod(
             name: p.basename(abs),
             path: abs,
             isDirectory: FileSystemEntity.isDirectorySync(abs)));
-      } else {
-        ModStore.delete(abs);
+        } else {
+          ModStore.delete(abs);
+        }
       }
     }
     // Whatever owned a removed path is stale now, whatever its slug.
     r.mods.removeWhere((_, e) => rel.any(e.owns));
     return rel;
+  }
+
+  /// Puts archived mod [a] back; a recorded mod's entry goes back into [r].
+  /// Refuses when a mod recorded in [r] now owns one of its paths, since
+  /// restoring would delete that newer install.
+  static void restore(ArchivedMod a, AmmRecord r, String gameRoot) {
+    for (final (origin, _) in a.items) {
+      final owner =
+          r.ownerSlug(p.relative(origin, from: gameRoot).replaceAll(r'\', '/'));
+      if (owner != null) {
+        throw ModOpsException('$owner is installed there now; remove it first.');
+      }
+    }
+    ModStore.restore(a);
+    if (a.slug case final s? when a.record != null) r.mods[s] = a.record!;
   }
 
   /// Absolute form of record path [rel]; refuses anything outside [gameRoot].
@@ -256,16 +293,9 @@ class ModOps {
     for (final m in onDisk) {
       final rel = p.relative(m.path, from: t.gameRoot).replaceAll(r'\', '/');
       if (r.ownerOf(rel) != null) continue;
-      final name = p.basename(m.path);
-      final id = m.isDirectory ? ModStore.infoField(m.path, 'Id')?.toLowerCase() : null;
-      final e = id == null
-          ? null
-          : c.entries.where((e) =>
-              e.slug == id ||
-              e.ours?.id.toLowerCase() == id ||
-              e.theirs?.name.toLowerCase() == id).firstOrNull;
+      final e = _match(c, m);
       if (e == null) {
-        unknown.add(name);
+        unknown.add(p.basename(m.path));
         continue;
       }
       installed.add(e.slug);
@@ -276,6 +306,49 @@ class ModOps {
       }
     }
     return UpgradeScan(ups, unknown, installed);
+  }
+
+  /// The catalog entry an unrecorded mod folder names in its Info.json `Id`.
+  static CatalogEntry? _match(Catalog c, InstalledMod m) {
+    final id = m.isDirectory ? ModStore.infoField(m.path, 'Id')?.toLowerCase() : null;
+    if (id == null) return null;
+    return c.entries.where((e) =>
+        e.slug == id ||
+        e.ours?.id.toLowerCase() == id ||
+        e.theirs?.name.toLowerCase() == id).firstOrNull;
+  }
+
+  /// [onDisk] as Installed-tab items: one per recorded mod (however many
+  /// paths it has), plus one per file no record entry owns. Sorted by name.
+  static List<InstalledItem> installedItems(
+      Catalog c, AmmRecord r, List<InstalledMod> onDisk, String gameRoot) {
+    final items = <InstalledItem>[];
+    final seen = <String>{};
+    for (final m in onDisk) {
+      final rel = p.relative(m.path, from: gameRoot).replaceAll(r'\', '/');
+      final owner = r.ownerSlug(rel);
+      if (owner != null) {
+        if (!seen.add(owner)) continue;
+        final e = c.find(owner);
+        items.add(InstalledItem(
+            name: e?.name ?? owner, slug: owner, version: r.mods[owner]!.version, entry: e));
+        continue;
+      }
+      final e = _match(c, m);
+      items.add(InstalledItem(
+          name: m.name,
+          slug: e?.slug,
+          version: m.isDirectory ? ModStore.infoField(m.path, 'Version') : null,
+          entry: e,
+          file: m));
+    }
+    // Recorded mods with nothing in the mods folders (plugins, libraries).
+    for (final MapEntry(key: slug, value: rec) in r.mods.entries) {
+      if (seen.contains(slug)) continue;
+      final e = c.find(slug);
+      items.add(InstalledItem(name: e?.name ?? slug, slug: slug, version: rec.version, entry: e));
+    }
+    return items..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
   }
 
   /// Downloads first, then swaps: the old paths move to

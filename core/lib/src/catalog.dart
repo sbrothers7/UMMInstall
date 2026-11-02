@@ -28,6 +28,11 @@ class CatalogEntry {
   bool get jalib => ours?.jalib ?? false;
   List<String> get dependencies => theirs?.dependencies ?? const [];
 
+  // Card details only modlist.org has; absent for mods.json-only entries.
+  String? get author => theirs?.author;
+  int? get downloads => theirs?.downloads;
+  List<String> get categories => theirs?.categories ?? const [];
+
   /// Game versions the mod supports: modlist.org's when it lists some, else
   /// the builds mods.json allows.
   List<String> get gameVersions {

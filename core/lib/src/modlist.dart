@@ -11,6 +11,9 @@ class ModlistMod {
   final List<String> dependencies; // slugs
   final Set<String> loaders; // empty means the file works with any loader
   final List<String> gameVersions; // free text like "2.9.8+"; empty = unknown
+  final String? author; // authorId.username
+  final int downloads;
+  final List<String> categories;
 
   const ModlistMod({
     required this.slug,
@@ -20,6 +23,9 @@ class ModlistMod {
     this.dependencies = const [],
     this.loaders = const {},
     this.gameVersions = const [],
+    this.author,
+    this.downloads = 0,
+    this.categories = const [],
   });
 
   factory ModlistMod.fromJson(Map<String, dynamic> j) {
@@ -39,6 +45,12 @@ class ModlistMod {
         for (final v in (latest?['availableGameVersions'] as List?) ??
             [?latest?['gameVersion']])
           if (v is String && v.isNotEmpty) v
+      ],
+      author: (j['authorId'] as Map<String, dynamic>?)?['username'] as String?,
+      downloads: (j['downloads'] as num?)?.toInt() ?? 0,
+      categories: [
+        for (final c in (j['categories'] as List?) ?? const [])
+          if (c is String) c
       ],
     );
   }

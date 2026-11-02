@@ -168,7 +168,7 @@ Future<bool> _step(
   return false;
 }
 
-/// `amm modinstall <slug>...`.
+/// `amm install --mod <slug>...` (`amm mi`).
 Future<int> modinstall(Ctx c, List<String> slugs) async {
   final f = await _readyGame(c);
   if (f == null) return 1;

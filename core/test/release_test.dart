@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:ffi' show Abi;
+import 'dart:io';
 
 import 'package:amm_core/amm_core.dart';
 import 'package:http/http.dart' as http;
@@ -44,6 +46,19 @@ void main() {
     expect(r.tag, 'v9.9.9');
     expect(r.assets, {'amm-linux-x64': 'https://d/a', 'Gui-macos.zip': 'https://d/g'});
   });
+
+  test('guiAsset picks this platform\'s GUI download', () {
+    const r = GithubRelease('v1', {
+      'amm-linux-x64': 'cli',
+      'Gui-macos.zip': 'mac',
+      'Gui-linux.tar.gz': 'linux',
+    });
+    expect(
+      r.guiAsset,
+      Platform.isMacOS ? 'mac' : (Abi.current() == Abi.linuxX64 ? 'linux' : null),
+    );
+    expect(const GithubRelease('v1', {'amm-linux-x64': 'cli'}).guiAsset, isNull);
+  }, testOn: 'mac-os || linux');
 
   test('GithubRelease.latest throws on an HTTP error', () async {
     httpClient = MockClient((_) async => http.Response('nope', 403));

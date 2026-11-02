@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 
 import 'models.dart';
 import 'platform/game_paths.dart';
+import 'record.dart';
 
 /// On-disk handling of installed and archived mods (Mods/, UMMMods/ and the
 /// `.adofai-archive` folder).
@@ -46,12 +47,18 @@ class ModStore {
       if (!meta.existsSync()) continue;
       try {
         final j = jsonDecode(meta.readAsStringSync()) as Map<String, dynamic>;
+        final rec = j['record'] as Map<String, dynamic>?;
         result.add(ArchivedMod(
           name: j['name'] as String? ?? p.basename(entity.path),
           key: p.basename(entity.path),
-          originPath: j['origin'] as String,
-          isDirectory: j['isDirectory'] as bool? ?? true,
-          payloadPath: p.join(entity.path, j['payload'] as String),
+          // A recorded mod lists every path; older entries hold one.
+          items: [
+            for (final i in (j['items'] as List?) ?? [j])
+              ((i as Map<String, dynamic>)['origin'] as String,
+                  p.join(entity.path, i['payload'] as String)),
+          ],
+          slug: j['slug'] as String?,
+          record: rec == null ? null : RecordEntry.fromJson(rec),
         ));
       } catch (_) {}
     }
@@ -74,11 +81,7 @@ class ModStore {
   /// restored later.
   static void archive(InstalledMod mod) {
     final base = p.basename(mod.path);
-    final entryDir = p.join(GamePaths.archivePath, base);
-    if (Directory(entryDir).existsSync()) {
-      Directory(entryDir).deleteSync(recursive: true);
-    }
-    Directory(entryDir).createSync(recursive: true);
+    final entryDir = _freshEntry(base);
     moveEntity(mod.path, p.join(entryDir, base));
     File(p.join(entryDir, '_archive.json')).writeAsStringSync(jsonEncode({
       'name': mod.name,
@@ -88,20 +91,54 @@ class ModStore {
     }));
   }
 
-  /// Puts an archived mod back at its original location.
-  static void restore(ArchivedMod a) {
-    Directory(p.dirname(a.originPath)).createSync(recursive: true);
-    if (FileSystemEntity.typeSync(a.originPath) !=
-        FileSystemEntityType.notFound) {
-      if (FileSystemEntity.isDirectorySync(a.originPath)) {
-        Directory(a.originPath).deleteSync(recursive: true);
-      } else {
-        File(a.originPath).deleteSync();
-      }
+  /// "Keep Data" for a recorded mod: all of [paths] (absolute, inside
+  /// [gameRoot]) go into one archive entry that also keeps [record], so the
+  /// mod restores whole and recorded again.
+  static void archiveRecorded(String name, String slug, RecordEntry record,
+      List<String> paths, String gameRoot) {
+    final entryDir = _freshEntry(slug);
+    final items = <Map<String, String>>[];
+    for (final abs in paths) {
+      if (FileSystemEntity.typeSync(abs) == FileSystemEntityType.notFound) continue;
+      final payload = p.join('files', p.relative(abs, from: gameRoot));
+      Directory(p.dirname(p.join(entryDir, payload))).createSync(recursive: true);
+      moveEntity(abs, p.join(entryDir, payload));
+      items.add({'origin': abs, 'payload': payload});
     }
-    if (FileSystemEntity.typeSync(a.payloadPath) !=
-        FileSystemEntityType.notFound) {
-      moveEntity(a.payloadPath, a.originPath);
+    File(p.join(entryDir, '_archive.json')).writeAsStringSync(jsonEncode({
+      'name': name,
+      'slug': slug,
+      'record': record.toJson(),
+      'items': items,
+    }));
+  }
+
+  /// A new, empty archive entry named [base], or `base-2`, `base-3`… when an
+  /// earlier archive already has the name (it must not be overwritten).
+  static String _freshEntry(String base) {
+    var dir = p.join(GamePaths.archivePath, base);
+    for (var n = 2; FileSystemEntity.typeSync(dir) != FileSystemEntityType.notFound; n++) {
+      dir = p.join(GamePaths.archivePath, '$base-$n');
+    }
+    Directory(dir).createSync(recursive: true);
+    return dir;
+  }
+
+  /// Puts an archived mod back at its original location(s), replacing
+  /// whatever is there.
+  static void restore(ArchivedMod a) {
+    for (final (origin, payload) in a.items) {
+      Directory(p.dirname(origin)).createSync(recursive: true);
+      if (FileSystemEntity.typeSync(origin) != FileSystemEntityType.notFound) {
+        if (FileSystemEntity.isDirectorySync(origin)) {
+          Directory(origin).deleteSync(recursive: true);
+        } else {
+          File(origin).deleteSync();
+        }
+      }
+      if (FileSystemEntity.typeSync(payload) != FileSystemEntityType.notFound) {
+        moveEntity(payload, origin);
+      }
     }
     deleteArchived(a);
   }

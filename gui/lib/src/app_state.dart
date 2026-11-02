@@ -14,17 +14,19 @@ class AppState extends ChangeNotifier {
   String? gameVersion;
   String subtitle = '';
 
-  List<Mod> mods = [];
-  String? modsError;
-  final Set<String> selectedMods = {};
   LoaderType selectedLoader = LoaderType.umm;
 
   final List<LogEntry> logEntries = [];
   List<String> migratableMods = [];
 
-  List<InstalledMod> installedMods = [];
+  // Mods screen: the catalog `amm` uses, and what's on disk (_refreshMods).
+  Catalog? catalog;
+  String? catalogError; // both sources failed
+  UpgradeScan? scan;
+  List<InstalledItem> installedItems = [];
   List<ArchivedMod> archivedMods = [];
-  final Set<String> selectedForDelete = {};
+  String? busySlug; // the card whose operation is running; '*' for Update All
+  String? modError;
 
   bool completeSuccess = false;
   String completeMessage = '';
@@ -68,7 +70,7 @@ class AppState extends ChangeNotifier {
 
     subtitle = t('Loading mods…', '모드 불러오는 중…');
     notifyListeners();
-    await loadMods();
+    await loadCatalog();
 
     gameVersion = await GamePaths.detectGameVersion();
     subtitle = '';
@@ -131,19 +133,16 @@ class AppState extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<void> loadMods() async {
+  /// mods.json merged with modlist.org; one source down is a warning.
+  Future<void> loadCatalog() async {
     try {
-      mods = await ModRegistry.fetch();
-      modsError = null;
+      catalog = await Catalog.load();
+      catalogError = null;
     } catch (e) {
-      mods = [];
-      modsError = e.toString();
+      catalog = null;
+      catalogError = e.toString();
     }
-    notifyListeners();
-  }
-
-  void reloadMods() {
-    loadMods();
+    _refreshMods();
   }
 
   // MARK: - Derived state
@@ -156,17 +155,35 @@ class AppState extends ChangeNotifier {
   String get modsInstallPath =>
       hasMelonLoader ? GamePaths.melonModsPath : GamePaths.ummModsPath;
 
-  /// Mods shown in the picker for the detected game version. JALib-dependent
-  /// mods are hidden (and surfaced via the banner) while JALib is broken.
-  List<Mod> get visibleMods => mods.where((m) {
-        if (m.jalib) return false;
-        return isGameV2 ? m.v2 : m.v3;
-      }).toList();
+  /// The game build for catalog filtering; null (show everything) when the
+  /// version is unknown.
+  bool? get _v2 => gameVersion == null ? null : isGameV2;
 
-  /// JALib-dependent mods that would otherwise be available for this game
-  /// version — listed in the picker's "unavailable" banner.
-  List<Mod> get unavailableJalibMods =>
-      mods.where((m) => m.jalib && (isGameV2 ? m.v2 : m.v3)).toList();
+  /// Mods for the detected game build. JALib-dependent mods are hidden (and
+  /// surfaced via the banner) while JALib is broken.
+  List<CatalogEntry> get browseEntries => [
+        for (final e in catalog?.entries ?? const <CatalogEntry>[])
+          if (e.visibleOn(_v2) && !e.jalib) e,
+      ];
+
+  /// JALib-dependent mods that would otherwise be available — listed in the
+  /// "unavailable" banner.
+  List<CatalogEntry> get unavailableJalib => [
+        for (final e in catalog?.entries ?? const <CatalogEntry>[])
+          if (e.visibleOn(_v2) && e.jalib) e,
+      ];
+
+  bool isInstalled(String slug) => scan?.installed.contains(slug) ?? false;
+
+  Upgrade? upgradeFor(String slug) =>
+      scan?.upgrades.where((u) => u.entry.slug == slug).firstOrNull;
+
+  ModTarget get _modTarget => ModTarget(
+      gameRoot: GamePaths.gamePath,
+      isV2: isGameV2,
+      gameVersion: gameVersion,
+      melon: hasMelonLoader,
+      platform: Platform.operatingSystem);
 
   String get confirmationText {
     final v = gameVersion ?? '?';
@@ -204,72 +221,152 @@ class AppState extends ChangeNotifier {
 
   void proceedFromConfirm(LoaderType loader) {
     selectedLoader = loader;
-    phase = InstallPhase.picker;
-    notifyListeners();
+    startInstall();
   }
 
-  void proceedFromInstalled() {
-    phase = InstallPhase.picker;
-    notifyListeners();
+  // MARK: - Mods screen
+
+  void openMods() {
+    modError = null;
+    phase = InstallPhase.mods;
+    _refreshMods();
   }
 
-  // MARK: - Manage / delete mods
+  /// Installs [slug] and whatever it needs first, like `amm install --mod`.
+  Future<void> installMod(String slug) => _modJob(slug, (at) async {
+        final root = GamePaths.gamePath;
+        final record = AmmRecord.load(root);
+        final plan = ModOps.plan(catalog!, [slug], record);
+        if (plan.missing.isNotEmpty) {
+          throw ModOpsException(t('Unknown mod(s): ${plan.missing.join(', ')}',
+              '알 수 없는 모드: ${plan.missing.join(', ')}'));
+        }
+        for (final e in plan.order) {
+          at(e.slug);
+          record.mods[e.slug] = await ModOps.install(e, _modTarget);
+          record.save(root);
+        }
+      });
 
-  void openManageMods() {
-    installedMods = ModStore.scanInstalled();
-    archivedMods = ModStore.scanArchived();
-    selectedForDelete.clear();
-    phase = InstallPhase.manageMods;
-    notifyListeners();
+  Future<void> updateMod(String slug) => _modJob(slug, (at) async {
+        final u = upgradeFor(slug);
+        if (u != null) await _upgrade(u);
+      });
+
+  /// Like `amm upgrade` with no names: one failure doesn't stop the rest.
+  Future<void> updateAll() => _modJob('*', (at) async {
+        final failed = <String>[];
+        for (final u in [...?scan?.upgrades]) {
+          try {
+            await _upgrade(u);
+          } on ModOpsException catch (e) {
+            failed.add('${u.entry.slug}: ${e.message}');
+          } on ModDownloadException catch (e) {
+            failed.add('${u.entry.slug}: ${e.message}');
+          }
+        }
+        if (failed.isNotEmpty) {
+          at(''); // the message names each mod already
+          throw ModOpsException(failed.join('\n'));
+        }
+      });
+
+  Future<void> _upgrade(Upgrade u) async {
+    final root = GamePaths.gamePath;
+    final record = AmmRecord.load(root);
+    record.mods[u.entry.slug] = await ModOps.upgrade(u, _modTarget);
+    record.save(root);
   }
 
-  void toggleDeleteSelection(String path) {
-    if (!selectedForDelete.remove(path)) selectedForDelete.add(path);
+  /// Runs one Mods-screen operation at a time; a failure shows as
+  /// `slug: message` (the slug [job] last passed to `at`), then rescans.
+  Future<void> _modJob(
+      String busy, Future<void> Function(void Function(String) at) job) async {
+    if (busySlug != null) return;
+    busySlug = busy;
+    modError = null;
     notifyListeners();
-  }
-
-  /// Permanently removes installed mods from disk.
-  void deleteMods(Iterable<String> paths) {
-    for (final path in paths) {
-      ModStore.delete(path);
+    var at = busy;
+    String said(String m) => at.isEmpty ? m : '$at: $m';
+    try {
+      await job((s) => at = s);
+    } on ModOpsException catch (e) {
+      modError = said(e.message);
+    } on ModDownloadException catch (e) {
+      modError = said(e.message);
+    } catch (e) {
+      modError = said('$e');
     }
-    selectedForDelete.removeAll(paths.toSet());
+    busySlug = null;
     _refreshMods();
   }
 
-  /// "Keep Data": moves installed mods into the persistent archive so they stop
-  /// loading but can be restored later (settings preserved).
-  void archiveMods(Iterable<String> paths) {
-    final archiveRoot = GamePaths.archivePath;
-    Directory(archiveRoot).createSync(recursive: true);
-    for (final path in paths) {
-      final mod = installedMods.firstWhere(
-        (m) => m.path == path,
-        orElse: () => InstalledMod(
-          name: p.basename(path),
-          path: path,
-          isDirectory: FileSystemEntity.isDirectorySync(path),
-        ),
-      );
-      ModStore.archive(mod);
+  /// Removes an Installed-tab item. [keep] archives it (settings preserved,
+  /// restorable). A recorded mod goes by slug, so all its paths go and its
+  /// record entry is dropped; a file nothing recorded goes by path.
+  void removeItem(InstalledItem item, {required bool keep}) {
+    if (busySlug != null) return;
+    modError = null;
+    final root = GamePaths.gamePath;
+    try {
+      final file = item.file;
+      if (file == null) {
+        final record = AmmRecord.load(root);
+        ModOps.remove(item.slug!, record, root, keep: keep, name: item.name);
+        record.save(root);
+      } else if (keep) {
+        ModStore.archive(file);
+      } else {
+        ModStore.delete(file.path);
+      }
+    } catch (e) {
+      modError = '${item.name}: $e';
     }
-    selectedForDelete.removeAll(paths.toSet());
     _refreshMods();
   }
 
-  void restoreMod(ArchivedMod a) {
-    ModStore.restore(a);
+  /// Puts an archived mod back (and, for a recorded one, its record entry).
+  void restoreMod(ArchivedMod a) => _archiveJob(a, () {
+        final root = GamePaths.gamePath;
+        final record = AmmRecord.load(root);
+        ModOps.restore(a, record, root);
+        record.save(root);
+      });
+
+  void deleteArchived(ArchivedMod a) => _archiveJob(a, () => ModStore.deleteArchived(a));
+
+  void _archiveJob(ArchivedMod a, void Function() job) {
+    if (busySlug != null) return;
+    modError = null;
+    try {
+      job();
+    } on ModOpsException catch (e) {
+      modError = '${a.name}: ${e.message}';
+    } catch (e) {
+      modError = '${a.name}: $e';
+    }
     _refreshMods();
   }
 
-  void deleteArchived(ArchivedMod a) {
-    ModStore.deleteArchived(a);
-    _refreshMods();
+  void dismissModError() {
+    modError = null;
+    notifyListeners();
   }
 
+  /// Rereads the record and the mods folders against the catalog (an empty
+  /// one when it didn't load, so the Installed tab still works offline).
   void _refreshMods() {
-    installedMods = ModStore.scanInstalled();
-    archivedMods = ModStore.scanArchived();
+    final root = GamePaths.gamePath;
+    final c = catalog ?? Catalog(const []);
+    try {
+      final record = AmmRecord.load(root);
+      final onDisk = ModStore.scanInstalled();
+      scan = ModOps.upgrades(c, record, onDisk, _modTarget);
+      installedItems = ModOps.installedItems(c, record, onDisk, root);
+      archivedMods = ModStore.scanArchived();
+    } catch (e) {
+      modError = e.toString();
+    }
     notifyListeners();
   }
 
@@ -278,27 +375,16 @@ class AppState extends ChangeNotifier {
   /// clearing transient install state.
   void returnToMenu() {
     logEntries.clear();
-    selectedMods.clear();
     migratableMods = [];
     subtitle = '';
+    modError = null;
     _continueBootstrap();
-  }
-
-  void toggleMod(String id) {
-    if (!selectedMods.remove(id)) selectedMods.add(id);
-    notifyListeners();
-  }
-
-  void setAllSelected(bool selected) {
-    selectedMods.clear();
-    if (selected) selectedMods.addAll(visibleMods.map((m) => m.id));
-    notifyListeners();
   }
 
   // MARK: - Install
 
-  void startInstall({bool skipMods = false}) {
-    if (skipMods) selectedMods.clear();
+  /// Installs the chosen loader; mods come after, from the Mods screen.
+  void startInstall() {
     subtitle = t('Installing…', '설치 중…');
     phase = InstallPhase.installing;
     logEntries.clear();
@@ -347,79 +433,7 @@ class AppState extends ChangeNotifier {
       _applyLaunchOptions();
     }
 
-    final selected = mods.where((m) => selectedMods.contains(m.id)).toList();
-    final melon = hasMelonLoader;
-    final modsDir = modsInstallPath;
-    final failed = <String>[];
-    final recorded = <String, RecordEntry>{};
-    for (var i = 0; i < selected.length; i++) {
-      final mod = selected[i];
-      // A live progress-bar log row that morphs into the result line when done.
-      final entry = LogEntry(
-        LogLevel.info,
-        t('Downloading ${mod.id} (${i + 1}/${selected.length})…',
-            '${mod.id} 다운로드 중 (${i + 1}/${selected.length})…'),
-        progress: -1, // indeterminate until the first ratio arrives
-      );
-      logEntries.add(entry);
-      notifyListeners();
-
-      var lastPct = -1;
-      try {
-        final placed = await ModDownloader.install(
-          mod: mod,
-          isGameV2: isGameV2,
-          isMelonLoader: melon,
-          gameRoot: GamePaths.gamePath,
-          modsDir: modsDir,
-          onProgress: (f) {
-            final pct = (f * 100).round();
-            if (pct != lastPct) {
-              lastPct = pct;
-              entry.progress = f;
-              notifyListeners();
-            }
-          },
-        );
-        recorded[mod.slug] = RecordEntry(
-          source: 'mods.json',
-          version: mod.resolvedVersion(isGameV2: isGameV2, isMelonLoader: melon),
-          paths: [
-            for (final path in placed)
-              p.relative(path, from: GamePaths.gamePath).replaceAll(r'\', '/'),
-          ],
-        );
-        entry
-          ..progress = null
-          ..level = LogLevel.ok
-          ..message = t('${mod.id} installed.', '${mod.id} 설치 완료.');
-        notifyListeners();
-      } catch (e) {
-        entry
-          ..progress = null
-          ..level = LogLevel.error
-          ..message = t('${mod.id} failed to install.', '${mod.id} 설치 실패.');
-        log(LogLevel.detail, e.toString());
-        failed.add(mod.id);
-      }
-    }
-    if (recorded.isNotEmpty) {
-      try {
-        final root = GamePaths.gamePath;
-        final rec = AmmRecord.load(root);
-        rec.mods.addAll(recorded);
-        rec.save(root);
-      } catch (e) {
-        log(LogLevel.detail, e.toString());
-      }
-    }
-
-    _complete(
-      failed.isEmpty,
-      failed.isEmpty
-          ? t('Installation complete.', '설치 완료.')
-          : t('Installation finished with errors.', '오류와 함께 설치가 완료되었습니다.'),
-    );
+    _complete(true, t('Installation complete.', '설치 완료.'));
   }
 
   // MARK: - Uninstall

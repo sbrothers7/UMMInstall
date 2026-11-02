@@ -10,6 +10,9 @@ const quartz = {
   'name': 'Quartz',
   'summary': 'A mod.',
   'dependencies': [],
+  'authorId': {'username': 'koren.cs'},
+  'downloads': 317,
+  'categories': ['utility', 'gameplay'],
   'latestVersion': {
     'version': '2.1.1',
     'files': [
@@ -32,6 +35,13 @@ void main() {
     expect(m.loaders, {'melonloader', 'umm'});
   });
 
+  test('fromJson reads author, downloads and categories', () {
+    final m = ModlistMod.fromJson(quartz);
+    expect(m.author, 'koren.cs');
+    expect(m.downloads, 317);
+    expect(m.categories, ['utility', 'gameplay']);
+  });
+
   test('fromJson tolerates missing fields', () {
     final m = ModlistMod.fromJson({'slug': 's', 'name': 'S', 'latestVersion': null});
     expect(m.summary, '');
@@ -39,6 +49,9 @@ void main() {
     expect(m.dependencies, isEmpty);
     expect(m.loaders, isEmpty);
     expect(m.gameVersions, isEmpty);
+    expect(m.author, isNull);
+    expect(m.downloads, 0);
+    expect(m.categories, isEmpty);
   });
 
   test('fromJson reads game versions, falling back to gameVersion', () {

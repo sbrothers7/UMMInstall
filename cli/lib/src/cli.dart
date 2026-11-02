@@ -20,7 +20,7 @@ Commands:
   status                                Show the game, loader and mods
   list (-l)                             List installed mods
   search (-s) [<query>]                 Search the mod catalog (all if no query)
-  modinstall (mi) <slug>...             Install mods
+  install --mod <slug>... (mi)          Install mods
   mr <name>... [--keep]                 Remove mods
   upgrade [<name>...]                   Upgrade mods
   update                                Update amm, ammtui and the GUI app
@@ -35,12 +35,12 @@ const _methodFlags = ['ml', 'native', 'rosetta'];
 List<String> normalize(List<String> argv) {
   if (argv.isEmpty) return argv;
   final first = switch (argv.first) {
-    '-l' => 'list',
-    '-s' => 'search',
-    'mi' => 'modinstall',
-    final other => other,
+    '-l' => ['list'],
+    '-s' => ['search'],
+    'mi' || 'modinstall' => ['install', '--mod'],
+    final other => [other],
   };
-  return [first, ...argv.skip(1)];
+  return [...first, ...argv.skip(1)];
 }
 
 ArgParser _parser() {
@@ -57,14 +57,13 @@ ArgParser _parser() {
   return ArgParser()
     ..addFlag('yes', abbr: 'y', negatable: false)
     ..addFlag('help', abbr: 'h', negatable: false)
-    ..addCommand('install', cmd(_methodFlags))
+    ..addCommand('install', cmd([..._methodFlags, 'mod']))
     ..addCommand('reinstall', cmd(_methodFlags))
     ..addCommand('uninstall', cmd())
     ..addCommand('default', cmd())
     ..addCommand('status', cmd())
     ..addCommand('list', cmd())
     ..addCommand('search', cmd())
-    ..addCommand('modinstall', cmd())
     ..addCommand('mr', cmd(['keep']))
     ..addCommand('upgrade', cmd())
     ..addCommand('update', cmd())
@@ -112,8 +111,16 @@ Future<int> runCli(List<String> argv, {Ctx Function(bool yes)? makeCtx}) async {
   // The TUI's prompts are always asked; -y must not answer them.
   final c = (makeCtx ?? (yes) => Ctx(yes: yes))(yes && name != 'tui');
   final method = methods.isEmpty ? null : Method.parse(methods.first);
+  final mod = cmd.options.contains('mod') && cmd['mod'] as bool;
   try {
     return await switch (name) {
+      'install' when mod && methods.isNotEmpty => Future.value(
+        usageError('Use --mod without --ml, --native or --rosetta.'),
+      ),
+      'install' when mod && cmd.rest.isEmpty => Future.value(
+        usageError('install --mod needs at least one mod.'),
+      ),
+      'install' when mod => modinstall(c, cmd.rest),
       'install' => install(c, method: method),
       'reinstall' => reinstall(c, method: method),
       'uninstall' => uninstall(c),
@@ -121,10 +128,6 @@ Future<int> runCli(List<String> argv, {Ctx Function(bool yes)? makeCtx}) async {
       'status' => status(c),
       'list' => list(c),
       'search' => search(c, cmd.rest.join(' ')),
-      'modinstall' when cmd.rest.isEmpty => Future.value(
-        usageError('modinstall needs at least one mod.'),
-      ),
-      'modinstall' => modinstall(c, cmd.rest),
       'mr' when cmd.rest.isEmpty => Future.value(
         usageError('mr needs at least one mod.'),
       ),

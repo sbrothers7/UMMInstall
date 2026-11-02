@@ -105,4 +105,17 @@ void main() {
     httpClient = MockClient((req) async => http.Response('x', 500));
     expect(Catalog.load(), throwsA(isA<ModRegistryException>()));
   });
+
+  test('card fields come from modlist.org and are absent for mods.json-only', () {
+    final c = Catalog.merge(
+      [const Mod(id: 'Ours', slug: 'ours', url: 'u')],
+      [const ModlistMod(slug: 'q', name: 'Q', author: 'a', downloads: 5, categories: ['ui'])],
+    );
+    expect(c.find('q')!.author, 'a');
+    expect(c.find('q')!.downloads, 5);
+    expect(c.find('q')!.categories, ['ui']);
+    expect(c.find('ours')!.author, isNull);
+    expect(c.find('ours')!.downloads, isNull);
+    expect(c.find('ours')!.categories, isEmpty);
+  });
 }

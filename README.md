@@ -11,6 +11,9 @@ A native macOS installer for [Unity Mod Manager](https://www.nexusmods.com/site/
 
 https://github.com/sbrothers7/UMMInstall/releases/latest
 
+- macOS: `ADOFAIModInstaller-macos.zip`
+- Linux (x64): `ADOFAIModInstaller-linux.tar.gz`. Unpack it anywhere and run `adofai-mod-installer/adofai_mod_installer`; the first launch adds it to your app menu. Needs GTK 3, which most desktops include.
+
 ## Command line (amm)
 
 ```
@@ -28,11 +31,11 @@ curl -fsSL https://raw.githubusercontent.com/sbrothers7/UMMInstall/main/cli/inst
 | `amm status` | Show the game, loader and mod counts |
 | `amm list` / `-l` | List installed mods |
 | `amm search [text]` / `-s` | Search the mod list (no text lists every mod with its versions and game versions) |
-| `amm modinstall <mod>` / `mi` | Install a mod |
+| `amm install --mod <mod>` / `mi` | Install a mod |
 | `amm mr <mod>` (`--keep`) | Remove a mod (`--keep` keeps its settings) |
 | `amm upgrade` | Upgrade all installed mods |
 | `amm upgrade <slug>` | Upgrade one mod |
-| `amm update` | Update amm, ammtui and the GUI app (in Applications) to the latest release |
+| `amm update` | Update amm, ammtui and the GUI app (in Applications, or on Linux the copy in your app menu) to the latest release |
 
 `ammtui` opens the interactive menu. Add `-y` to skip confirmations. On Linux (x64), only the native build with MelonLoader is supported.
 

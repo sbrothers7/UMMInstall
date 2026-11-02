@@ -8,7 +8,8 @@ void main() {
   test('normalize maps -l, -s, mi', () {
     expect(normalize(['-l']), ['list']);
     expect(normalize(['-s', 'x']), ['search', 'x']);
-    expect(normalize(['mi', 'a']), ['modinstall', 'a']);
+    expect(normalize(['mi', 'a']), ['install', '--mod', 'a']);
+    expect(normalize(['modinstall', 'a', 'b']), ['install', '--mod', 'a', 'b']);
     expect(normalize(['list', '-l']), ['list', '-l']);
   });
 
@@ -31,6 +32,17 @@ void main() {
 
   test('two method flags is a usage error', () async {
     expect((await run(['install', '--ml', '--native'])).$1, 2);
+  });
+
+  test('install --mod reaches mod install', () async {
+    final (code, out) = await run(['install', '--mod', 'x']);
+    expect(code, 1);
+    expect(out, contains('ADOFAI not found'));
+  });
+
+  test('install --mod needs a mod and no loader flag', () async {
+    expect((await run(['install', '--mod'])).$1, 2);
+    expect((await run(['install', '--mod', '--ml', 'x'])).$1, 2);
   });
 
   test('search without a query is allowed', () async {

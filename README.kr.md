@@ -11,6 +11,9 @@
 
 https://github.com/sbrothers7/UMMInstall/releases/latest
 
+- macOS: `ADOFAIModInstaller-macos.zip`
+- Linux (x64): `ADOFAIModInstaller-linux.tar.gz`. 원하는 곳에 압축을 풀고 `adofai-mod-installer/adofai_mod_installer`를 실행하세요. 처음 실행하면 앱 메뉴에 추가됩니다. GTK 3이 필요하며, 대부분의 데스크톱에 기본으로 설치되어 있습니다.
+
 ## 커맨드 라인 (amm)
 
 ```
@@ -28,11 +31,11 @@ curl -fsSL https://raw.githubusercontent.com/sbrothers7/UMMInstall/main/cli/inst
 | `amm status` | 게임, 로더, 모드 개수 확인 |
 | `amm list` / `-l` | 설치된 모드 목록 |
 | `amm search [text]` / `-s` | 모드 검색 (텍스트 없이 실행하면 모든 모드와 버전, 게임 버전 표시) |
-| `amm modinstall <mod>` / `mi` | 모드 설치 |
+| `amm install --mod <mod>` / `mi` | 모드 설치 |
 | `amm mr <mod>` (`--keep`) | 모드 제거 (`--keep`은 설정 유지) |
 | `amm upgrade` | 설치된 모든 모드 업그레이드 |
 | `amm upgrade <slug>` | 모드 하나 업그레이드 |
-| `amm update` | amm, ammtui, GUI 앱(응용 프로그램 폴더)을 최신 릴리스로 업데이트 |
+| `amm update` | amm, ammtui, GUI 앱(응용 프로그램 폴더, Linux는 앱 메뉴에 있는 것)을 최신 릴리스로 업데이트 |
 
 `ammtui`는 대화형 메뉴를 엽니다. `-y`를 붙이면 확인을 건너뜁니다. Linux(x64)에서는 네이티브 빌드의 MelonLoader만 지원합니다.
 

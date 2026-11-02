@@ -67,6 +67,17 @@ class ProgressView extends StatelessWidget {
               : Row(
                   children: [
                     const Spacer(),
+                    // After a loader install the log above may hold Steam
+                    // steps to read first, so mods are one click away.
+                    if (state.phase == InstallPhase.complete &&
+                        state.completeSuccess &&
+                        (state.hasMelonLoader || state.isUMMInstalled)) ...[
+                      FilledButton.tonal(
+                        onPressed: () => state.openMods(),
+                        child: Text(state.t('Browse Mods', '모드 둘러보기')),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     FilledButton(
                       onPressed: canClose ? () => state.returnToMenu() : null,
                       child: Text(state.t('Go Back', '돌아가기')),

@@ -156,6 +156,46 @@ void main() {
       expect(ModStore.scanArchived().map((a) => a.name), isNotEmpty);
     });
 
+    // A recorded mod with several paths (a MelonLoader dll plus UserLibs).
+    AmmRecord multiPath() {
+      File(p.join(game, 'Mods', 'B.dll'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync('b');
+      File(p.join(game, 'UserLibs', 'L.dll'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync('l');
+      return AmmRecord()
+        ..mods['both'] = const RecordEntry(
+            source: 'modlist.org', version: '1', paths: ['Mods/B.dll', 'UserLibs/L.dll']);
+    }
+
+    test('--keep archives a recorded mod as one entry that restores its record', () {
+      final r = multiPath();
+      ModOps.remove('both', r, game, keep: true, name: 'Both');
+      expect(r.mods, isEmpty);
+      expect(File(p.join(game, 'UserLibs', 'L.dll')).existsSync(), isFalse);
+      final a = ModStore.scanArchived().single;
+      expect(a.name, 'Both');
+
+      final back = AmmRecord();
+      ModOps.restore(a, back, game);
+      expect(File(p.join(game, 'Mods', 'B.dll')).readAsStringSync(), 'b');
+      expect(File(p.join(game, 'UserLibs', 'L.dll')).readAsStringSync(), 'l');
+      expect(back.mods['both']!.version, '1');
+      expect(back.mods['both']!.paths, ['Mods/B.dll', 'UserLibs/L.dll']);
+      expect(ModStore.scanArchived(), isEmpty);
+    });
+
+    test('restore refuses to overwrite a mod installed there since', () {
+      final r = multiPath();
+      ModOps.remove('both', r, game, keep: true);
+      final a = ModStore.scanArchived().single;
+      final now = multiPath();
+      expect(() => ModOps.restore(a, now, game), throwsA(isA<ModOpsException>()));
+      expect(ModStore.scanArchived(), hasLength(1));
+      expect(File(p.join(game, 'Mods', 'B.dll')).existsSync(), isTrue);
+    });
+
     test('matches unrecorded folder by name', () {
       mod('Mods/Quartz');
       expect(ModOps.remove('quartz', AmmRecord(), game), ['Mods/Quartz']);
@@ -316,6 +356,56 @@ void main() {
       expect(read('UMMMods/X/X.dll'), 'old');
       expect(read('UMMMods/X/Settings.xml'), '<mine/>');
       expect(backupLeft(), isFalse);
+    });
+  });
+
+  group('installedItems', () {
+    test('groups a recorded mod into one item with its record version', () {
+      Directory(p.join(game, 'Mods', 'B')).createSync(recursive: true);
+      File(p.join(game, 'Mods', 'B.dll')).writeAsStringSync('x');
+      final r = AmmRecord()
+        ..mods['both'] = const RecordEntry(
+            source: 'modlist.org', version: '1', paths: ['Mods/B', 'Mods/B.dll']);
+      final items = ModOps.installedItems(catalog, r, ModStore.scanInstalled(), game);
+      expect(items, hasLength(1));
+      expect(items.single.slug, 'both');
+      expect(items.single.version, '1');
+      expect(items.single.file, isNull);
+    });
+
+    test('matches a hand-added folder by Id and keeps its path', () {
+      final d = Directory(p.join(game, 'Mods', 'OursDir'))..createSync(recursive: true);
+      File(p.join(d.path, 'Info.json')).writeAsStringSync('{"Id":"ours","Version":"0.5"}');
+      final item =
+          ModOps.installedItems(catalog, AmmRecord(), ModStore.scanInstalled(), game).single;
+      expect(item.slug, 'ours');
+      expect(item.entry, isNotNull);
+      expect(item.version, '0.5');
+      expect(item.file!.path, d.path);
+    });
+
+    test('lists a recorded mod with no path in the mods folders', () {
+      File(p.join(game, 'UserLibs', 'L.dll'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync('x');
+      final r = AmmRecord()
+        ..mods['both'] = const RecordEntry(
+            source: 'modlist.org', version: '1', paths: ['UserLibs/L.dll']);
+      final item = ModOps.installedItems(catalog, r, ModStore.scanInstalled(), game).single;
+      expect(item.slug, 'both');
+      expect(item.version, '1');
+      expect(item.file, isNull);
+    });
+
+    test('lists an unknown file with no slug', () {
+      File(p.join(game, 'Mods', 'Mystery.dll'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync('x');
+      final item =
+          ModOps.installedItems(catalog, AmmRecord(), ModStore.scanInstalled(), game).single;
+      expect(item.name, 'Mystery.dll');
+      expect(item.slug, isNull);
+      expect(item.entry, isNull);
     });
   });
 }

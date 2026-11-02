@@ -46,4 +46,12 @@ void main() {
     expect(ModStore.scanArchived(), isEmpty);
     expect(File(p.join(game.path, 'UMMMods/A/Info.json')).existsSync(), isTrue);
   });
+
+  test('archive keeps an earlier archive with the same name', () {
+    file('UMMMods/A/Info.json');
+    ModStore.archive(ModStore.scanInstalled().single);
+    file('UMMMods/A/Info.json');
+    ModStore.archive(ModStore.scanInstalled().single);
+    expect(ModStore.scanArchived(), hasLength(2));
+  });
 }

@@ -1,8 +1,8 @@
 name: Release GUI (v2)
 
-# Builds the Flutter app and attaches a platform-named zip to the GitHub
-# release. macOS only for now; Windows/Linux are added back to the matrix when
-# those platforms are supported (the updater selects by platform keyword).
+# Builds the Flutter app and attaches it to the GitHub release as
+# ADOFAIModInstaller-macos.zip and ADOFAIModInstaller-linux.tar.gz, the names
+# the updaters look for (GithubRelease.guiAsset).
 on:
   push:
     tags: ['v2.*']
@@ -15,10 +15,14 @@ jobs:
   build:
     strategy:
       fail-fast: false
+      # The first attach creates the release; two at once can race.
+      max-parallel: 1
       matrix:
         include:
           - os: macos-latest
             platform: macos
+          - os: ubuntu-latest
+            platform: linux
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -38,6 +42,10 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Install Linux build tools
+        if: matrix.platform == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
+
       - run: flutter config --enable-${{ matrix.platform }}-desktop
       - run: flutter pub get
       - run: dart pub get && dart test
@@ -48,11 +56,16 @@ jobs:
         if: matrix.platform == 'macos'
         run: ditto -c -k --keepParent "build/macos/Build/Products/Release/adofai_mod_installer.app" "ADOFAIModInstaller-macos.zip"
 
+      # tar keeps the executable bit; the bundle unpacks as one folder.
+      - name: Package Linux
+        if: matrix.platform == 'linux'
+        run: tar -czf ADOFAIModInstaller-linux.tar.gz -C build/linux/x64/release --transform 's,^bundle,adofai-mod-installer,' bundle
+
       - name: Attach to release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: gui/ADOFAIModInstaller-*.zip
+          files: gui/ADOFAIModInstaller-*
 
   cli:
     # The GUI job creates the release; attaching in parallel races it.
