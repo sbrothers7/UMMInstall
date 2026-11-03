@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 # Removes MelonLoader from A Dance of Fire and Ice on Windows.
-# Leaves UMMCompat (Plugins/UserLibs) and your mods (Mods/, UMMMods/) in place.
+# Leaves UMMBridge (Plugins/, the data folder's UnityModManager/) and your mods (Mods/, UMMMods/) in place.
 $ErrorActionPreference = 'Stop'
 
 $GameDirName = 'A Dance of Fire and Ice'

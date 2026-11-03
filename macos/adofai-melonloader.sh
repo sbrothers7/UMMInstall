@@ -141,24 +141,41 @@ xattr -d com.apple.quarantine "$GAME_PATH/MelonLoader.Bootstrap.dylib" 2>/dev/nu
 xattr -d com.apple.quarantine "$GAME_PATH/setup_helper.sh" 2>/dev/null || true
 xattr -dr com.apple.quarantine "$GAME_PATH/MelonLoader" 2>/dev/null || true
 
-# Pre-create both mod folders. The UMMCompat plugin reads UMMMods/; native
+# Pre-create both mod folders. The UMMBridge plugin reads UMMMods/; native
 # MelonLoader mods go in Mods/.
 mkdir -p "$GAME_PATH/UMMMods"
 mkdir -p "$GAME_PATH/Mods"
 
-# Install UMMCompat (square3ang) — the MelonLoader plugin that loads UMM mods
-# from UMMMods/. Its zip lays down Plugins/ and UserLibs/ at the game root.
-echo "Downloading UMMCompat (square3ang)..."
-UMMCOMPAT_ZIP="/tmp/adofai-ummcompat.zip"
-rm -f "$UMMCOMPAT_ZIP"
-if curl -fLsS -o "$UMMCOMPAT_ZIP" "https://github.com/modlist-org/UMMCompat/releases/latest/download/UMMCompat.zip"; then
-    ditto -x -k "$UMMCOMPAT_ZIP" "$GAME_PATH"
-    rm -f "$UMMCOMPAT_ZIP"
+# UMMBridge replaces UMMCompat; two such plugins start UMM twice and crash
+# the game, so UMMCompat goes first. Its UserLibs files are overwritten below.
+if [ -f "$GAME_PATH/Plugins/UMMCompat.dll" ]; then
+    echo "Removing UMMCompat (replaced by UMMBridge)..."
+    rm -f "$GAME_PATH/Plugins/UMMCompat.dll"
+fi
+
+# Install UMMBridge — the MelonLoader plugin that loads UMM mods from
+# UMMMods/. This fork redirects UMM's Harmony detours so JALib mods work on
+# Apple Silicon. Its zip puts UMM under __gamename___Data/Managed/; on macOS
+# MelonLoader never probes a Managed folder outside the .app, so UMM (and its
+# 0Harmony, which JALib needs) goes in UserLibs/ instead.
+echo "Downloading UMMBridge..."
+BRIDGE_ZIP="/tmp/adofai-ummbridge.zip"
+rm -f "$BRIDGE_ZIP"
+if curl -fLsS -o "$BRIDGE_ZIP" "https://github.com/sbrothers7/UMMBridge/releases/latest/download/UMMBridge.zip"; then
+    STAGE="$(mktemp -d)"
+    ditto -x -k "$BRIDGE_ZIP" "$STAGE"
+    UMM_DIR="$STAGE/__gamename___Data/Managed/UnityModManager"
+    if [ -d "$UMM_DIR" ]; then
+        ditto "$UMM_DIR" "$STAGE/UserLibs"
+        rm -rf "$STAGE/__gamename___Data"
+    fi
+    ditto "$STAGE" "$GAME_PATH"
+    rm -rf "$STAGE" "$BRIDGE_ZIP"
     xattr -dr com.apple.quarantine "$GAME_PATH/Plugins" 2>/dev/null || true
     xattr -dr com.apple.quarantine "$GAME_PATH/UserLibs" 2>/dev/null || true
-    echo "ok:UMMCompat installed."
+    echo "ok:UMMBridge installed."
 else
-    echo "error:Failed to download UMMCompat — UMM mods in UMMMods/ won't load until it's installed."
+    echo "error:Failed to download UMMBridge — UMM mods in UMMMods/ won't load until it's installed."
 fi
 
 echo ""

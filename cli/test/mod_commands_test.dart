@@ -95,9 +95,9 @@ void main() {
     ['modlist.org unreachable: x'],
   );
 
-  test('search marks JALib mods broken', () async {
+  test('search marks JALib mods MelonLoader-on-macOS-only', () async {
     expect(await search(ctx(facts(), catalog: cat()), 'ba'), 0);
-    expect(env.sink.toString(), contains('[broken: needs JALib]'));
+    expect(env.sink.toString(), contains('[JALib: MelonLoader on macOS only]'));
   });
 
   test('search with no query lists every mod with versions and game versions, '
@@ -106,7 +106,7 @@ void main() {
     expect(env.sink.toString().split('\n'), [
       'modlist.org unreachable: x',
       'SLUG  VERSION  GAME      LOADERS  SOURCE     NAME',
-      'bad   -        2.x, 3.x  any      mods.json  Bad  [broken: needs JALib]',
+      'bad   -        2.x, 3.x  any      mods.json  Bad  [JALib: MelonLoader on macOS only]',
       'good  1.0      3.4.0     ml       mods.json  Good — nice',
       '',
     ]);

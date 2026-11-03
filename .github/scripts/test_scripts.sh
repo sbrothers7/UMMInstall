@@ -31,6 +31,7 @@ with zipfile.ZipFile(d + "/ml.zip", "w") as z:
     z.writestr("MelonLoader.Bootstrap.so", "x")
 with zipfile.ZipFile(d + "/compat.zip", "w") as z:
     z.writestr("Plugins/UMMBridge.dll", "x")
+    z.writestr("__gamename___Data/Managed/UnityModManager/UnityModManager.dll", "x")
 ' "$TMP"
 mkdir "$TMP/bin"
 printf '#!/bin/sh\necho x86_64\n' > "$TMP/bin/uname"
@@ -43,7 +44,7 @@ while [ $# -gt 0 ]; do
     shift
 done
 case "$url" in
-    *UMMCompat*) cp "$FIXTURES/compat.zip" "$out" ;;
+    *UMMBridge*) cp "$FIXTURES/compat.zip" "$out" ;;
     *) cp "$FIXTURES/ml.zip" "$out" ;;
 esac
 STUB
@@ -55,13 +56,20 @@ GAME="$TMP/game"
 MANAGED="$GAME/A Dance of Fire and Ice_Data/Managed"
 mkdir -p "$MANAGED"
 echo orig > "$MANAGED/UnityEngine.CoreModule.dll.bak"
+# A UMMCompat install, which UMMBridge replaces.
+mkdir -p "$GAME/Plugins" "$GAME/UserLibs"
+touch "$GAME/Plugins/UMMCompat.dll" "$GAME/UserLibs/UnityModManager.dll"
 
 bash "$ROOT/linux/adofai-melonloader.sh" "$GAME" >/dev/null
 grep -q 'LD_PRELOAD="MelonLoader.Bootstrap.so' "$GAME/setup_helper.sh" || fail "setup_helper.sh"
 [ -x "$GAME/setup_helper.sh" ] || fail "setup_helper.sh not executable"
 [ "$(cat "$GAME/MelonLoader/MelonLoader.version")" = 0.7.3 ] || fail "version marker"
 [ -d "$GAME/UMMMods" ] || fail "UMMMods"
-[ -f "$GAME/Plugins/UMMBridge.dll" ] || fail "UMMCompat"
+[ -f "$GAME/Plugins/UMMBridge.dll" ] || fail "UMMBridge"
+[ -f "$MANAGED/UnityModManager/UnityModManager.dll" ] || fail "UMMBridge's UMM not in the game's data folder"
+[ ! -e "$GAME/__gamename___Data" ] || fail "__gamename___Data left as is"
+[ ! -e "$GAME/Plugins/UMMCompat.dll" ] || fail "UMMCompat left beside UMMBridge"
+[ ! -e "$GAME/UserLibs/UnityModManager.dll" ] || fail "UMMCompat's UMM left in UserLibs"
 [ -f "$MANAGED/UnityEngine.CoreModule.dll" ] || fail "CoreModule not restored"
 
 bash "$ROOT/linux/adofai-melonloader-uninstall.sh" "$GAME" >/dev/null

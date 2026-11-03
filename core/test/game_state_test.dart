@@ -80,6 +80,13 @@ void main() {
     expect(d.confirm, contains('untested on game v3'));
   });
 
+  test('rosetta on an Intel Mac is the plain patch, not Rosetta', () {
+    final d = resolveInstall(facts(appleSilicon: false),
+        requested: Method.rosetta, fallback: Method.ml) as Proceed;
+    expect(d.method, Method.rosetta);
+    expect(d.confirm, isNot(contains('Rosetta')));
+  });
+
   test('resolveInstall treats unknown version as v3', () {
     final d = resolveInstall(facts(major: null), fallback: Method.ml);
     expect((d as Proceed).method, Method.ml);

@@ -104,10 +104,12 @@ Decision resolveInstall(
   if (m == Method.rosetta) {
     return Proceed(
       Method.rosetta,
-      confirm:
-          'UMM under Rosetta is untested on game v3.'
-          '${f.appleSilicon ? ' It strips the arm64 slice, so you must verify game files in Steam before --ml or --native work again.' : ''}'
-          ' Continue?',
+      // An Intel Mac runs the x64 game as is: the same patch, no Rosetta.
+      confirm: f.appleSilicon
+          ? 'UMM under Rosetta is untested on game v3. It strips the arm64 '
+                'slice, so you must verify game files in Steam before --ml or '
+                '--native work again. Continue?'
+          : 'UMM via the classic patch is untested on game v3. Continue?',
     );
   }
   return Proceed(m);

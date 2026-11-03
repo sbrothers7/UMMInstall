@@ -114,10 +114,10 @@ List<String> _searchRow(CatalogEntry e) {
   ];
 }
 
-/// The mod's name and summary, flagged when it can't work.
+/// The mod's name and summary, flagged when it needs a particular loader.
 String describe(CatalogEntry e) =>
     '${e.name}${e.summary.isEmpty ? '' : ' — ${e.summary}'}'
-    '${e.jalib ? '  [broken: needs JALib]' : ''}';
+    '${e.jalib ? '  [JALib: MelonLoader on macOS only]' : ''}';
 
 /// Where [f]'s game takes mods.
 ModTarget targetFor(GameFacts f) => ModTarget(

@@ -60,7 +60,9 @@ class ConfirmView extends StatelessWidget {
               else ...[
                 OutlinedButton(
                   onPressed: () => state.proceedFromConfirm(LoaderType.umm),
-                  child: Text(state.t('Native UMM', '네이티브 UMM')),
+                  child: Text(state.appleSilicon
+                      ? state.t('Native UMM', '네이티브 UMM')
+                      : 'UMM'),
                 ),
                 const SizedBox(width: 8),
                 FilledButton(

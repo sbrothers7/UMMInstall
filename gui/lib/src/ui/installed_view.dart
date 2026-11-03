@@ -90,8 +90,8 @@ class InstalledView extends StatelessWidget {
         title: Text(state.t(
             'Migrate to MelonLoader?', 'MelonLoader로 마이그레이션하시겠습니까?')),
         content: Text(state.t(
-          'This uninstalls Unity Mod Manager and installs MelonLoader + UMMCompat, then offers to move your UMM mods to UMMMods/.',
-          'Unity Mod Manager를 제거하고 MelonLoader + UMMCompat를 설치한 후, UMM 모드를 UMMMods/로 옮기도록 안내합니다.',
+          'This uninstalls Unity Mod Manager and installs MelonLoader + UMMBridge, then offers to move your UMM mods to UMMMods/.',
+          'Unity Mod Manager를 제거하고 MelonLoader + UMMBridge를 설치한 후, UMM 모드를 UMMMods/로 옮기도록 안내합니다.',
         )),
         actions: [
           TextButton(

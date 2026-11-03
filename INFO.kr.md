@@ -12,7 +12,7 @@
 
 ## Windows — PowerShell
 
-MelonLoader와 UMMCompat 플러그인을 설치합니다 (UMM 모드는 UMMCompat로 로드됨). Windows에서는 MelonLoader가 프록시 `version.dll`을 통해 주입되므로 실행 래퍼나 추가 의존성 설정이 필요 없습니다.
+MelonLoader와 UMMBridge 플러그인을 설치합니다 (UMM 모드는 UMMBridge로 로드됨). Windows에서는 MelonLoader가 프록시 `version.dll`을 통해 주입되므로 실행 래퍼나 추가 의존성 설정이 필요 없습니다.
 
 ```powershell
 # PowerShell에서 windows/ 폴더 안에서 실행:
@@ -49,7 +49,7 @@ UNIVERSAL=1 ./build.sh --version 1.0.10  # 유니버설 arm64 + x86_64 (Xcode �
 
 - **앱 내 Homebrew 설치:** Homebrew가 없는 경우 macOS 네이티브 인증 대화상자가 한 번만 표시됩니다. 설치 프로그램은 사용자 권한으로 실행되어 (임시 sudoers 엔트리 사용) 출력이 UMM과 동일한 진행 로그에 표시됩니다. 터미널 팝업이나 앱 재실행이 필요하지 않습니다.
 
-- **MelonLoader 지원:** v3.x+에서는 UMM 대신 [MelonLoader](https://melonwiki.xyz/)(권장)를 설치할 수 있습니다 — UMMCompat 플러그인(square3ang)을 자동 설치하고, Steam 실행 옵션을 대신 설정하며, 모드를 `UMMMods/`에 설치합니다. UMM이 이미 설치되어 있으면 마이그레이션(UMM 제거, MelonLoader 설치, 기존 UMM 모드를 `UMMMods/`로 이동)을 안내합니다. 전용 MelonLoader 빌드를 제공하는 모드(예: Quartz)는 MelonLoader가 활성 로더일 때 자동으로 해당 빌드를 사용합니다.
+- **MelonLoader 지원:** v3.x+에서는 UMM 대신 [MelonLoader](https://melonwiki.xyz/)(권장)를 설치할 수 있습니다 — UMMBridge 플러그인(macOS에서는 JALib 모드가 작동하도록 수정한 modlist.org 포크)을 자동 설치하고, Steam 실행 옵션을 대신 설정하며, 모드를 `UMMMods/`에 설치합니다. UMM이 이미 설치되어 있으면 마이그레이션(UMM 제거, MelonLoader 설치, 기존 UMM 모드를 `UMMMods/`로 이동)을 안내합니다. 전용 MelonLoader 빌드를 제공하는 모드(예: Quartz)는 MelonLoader가 활성 로더일 때 자동으로 해당 빌드를 사용합니다.
 
 - **모드 선택기:** 게임 버전에 맞는 호환 릴리스를 자동으로 선택합니다. v3 호환 릴리스가 없는 모드는 v3.x+에서 숨겨지며, v2 지원이 중단된 모드는 v2.x에서 고정된 이전 빌드로 폴백됩니다.
 
@@ -62,5 +62,5 @@ UNIVERSAL=1 ./build.sh --version 1.0.10  # 유니버설 arm64 + x86_64 (Xcode �
 - `urlV2` (선택) — v2.x 빌드에서 사용하는 다운로드.
 - `urlMelon` (선택) — 활성 로더가 MelonLoader일 때 사용하는 다운로드.
 - `v2` / `v3` (기본값 `true`) — 게임 빌드별 제공 여부.
-- `jalib` (기본값 `false`) — JALib 의존 모드가 작동하지 않는 동안 배너와 함께 숨김.
+- `jalib` (기본값 `false`) — JALib 의존 모드: macOS의 MelonLoader에서만 설치 가능 (그 외에는 배너와 함께 숨김). JALib이 직접 업데이트하므로 업그레이드 대상에서 제외.
 - `install` (선택) — 특수 설치 핸들러 키 (예: `quartz` — MelonLoader/UMM 빌드 모두에 대해 플러그인 DLL과 데이터 폴더 배치).

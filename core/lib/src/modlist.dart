@@ -14,6 +14,7 @@ class ModlistMod {
   final String? author; // authorId.username
   final int downloads;
   final List<String> categories;
+  final String? logo; // absolute URL
 
   const ModlistMod({
     required this.slug,
@@ -26,6 +27,7 @@ class ModlistMod {
     this.author,
     this.downloads = 0,
     this.categories = const [],
+    this.logo,
   });
 
   factory ModlistMod.fromJson(Map<String, dynamic> j) {
@@ -52,12 +54,18 @@ class ModlistMod {
         for (final c in (j['categories'] as List?) ?? const [])
           if (c is String) c
       ],
+      logo: switch (j['logo']) {
+        final String s when s.isNotEmpty =>
+          Uri.parse(ModlistClient.site).resolve(s).toString(),
+        _ => null,
+      },
     );
   }
 }
 
 class ModlistClient {
-  static const base = 'https://modlist.org/api/mods';
+  static const site = 'https://modlist.org';
+  static const base = '$site/api/mods';
 
   /// Slugs safe in a URL path and as a folder name (as update_mods.py checks).
   static final _safeSlug = RegExp(r'^[a-z0-9][a-z0-9._-]*$');

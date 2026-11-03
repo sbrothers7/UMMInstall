@@ -121,8 +121,11 @@ class ModOps {
   /// Throws if [e] can't go on [t]; otherwise downloads it.
   static Future<List<int>> _fetch(
       CatalogEntry e, ModTarget t, void Function(double)? onProgress) {
-    if (e.jalib) {
-      throw ModOpsException('${e.slug} depends on JALib, which is broken right now.');
+    // JALib's patcher needs the fork UMMBridge's detour redirect, which the
+    // installer ships (and was tested) on macOS only.
+    if (e.jalib && !(t.melon && t.platform == 'macos')) {
+      throw ModOpsException('${e.slug} depends on JALib, which works only under '
+          'MelonLoader on macOS. Switch with `amm reinstall --ml`.');
     }
     if (!e.visibleOn(t.isV2)) {
       throw ModOpsException("${e.slug} isn't available for game v${t.isV2 ? 2 : 3}.");
@@ -267,6 +270,7 @@ class ModOps {
 
   /// The version an upgrade would install; null when [upgrade] would refuse.
   static String? _latest(CatalogEntry e, ModTarget t) {
+    // JALib updates its own mods at runtime, past the catalog's version.
     if (e.jalib || !e.visibleOn(t.isV2)) return null;
     try {
       return _source(e, t).version;

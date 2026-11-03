@@ -14,6 +14,10 @@ class AppState extends ChangeNotifier {
   String? gameVersion;
   String subtitle = '';
 
+  /// False on an Intel Mac (and off macOS), where UMM is the classic patch.
+  bool appleSilicon = GamePaths.isAppleSilicon();
+  String platform = Platform.operatingSystem;
+
   LoaderType selectedLoader = LoaderType.umm;
 
   final List<LogEntry> logEntries = [];
@@ -101,7 +105,7 @@ class AppState extends ChangeNotifier {
   void _continueBootstrap() {
     if (GamePaths.hasMelonLoader() || GamePaths.isUMMInstalled()) {
       phase = InstallPhase.installed;
-    } else if (GamePaths.isAppleSilicon() &&
+    } else if (appleSilicon &&
         !isGameV2 &&
         !GamePaths.hasArm64Slice()) {
       phase = InstallPhase.needsVerify;
@@ -159,18 +163,25 @@ class AppState extends ChangeNotifier {
   /// version is unknown.
   bool? get _v2 => gameVersion == null ? null : isGameV2;
 
-  /// Mods for the detected game build. JALib-dependent mods are hidden (and
-  /// surfaced via the banner) while JALib is broken.
+  /// Mods for the detected game build, most downloaded first (mods.json-only
+  /// ones have no count and go last). JALib-dependent mods work only under
+  /// MelonLoader on macOS (the fork UMMBridge); elsewhere they're hidden and
+  /// named in the banner.
   List<CatalogEntry> get browseEntries => [
         for (final e in catalog?.entries ?? const <CatalogEntry>[])
-          if (e.visibleOn(_v2) && !e.jalib) e,
-      ];
+          if (e.visibleOn(_v2) && (!e.jalib || _jalibWorks)) e,
+      ]..sort((a, b) => switch ((b.downloads ?? -1).compareTo(a.downloads ?? -1)) {
+            0 => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+            final c => c,
+          });
 
-  /// JALib-dependent mods that would otherwise be available — listed in the
-  /// "unavailable" banner.
+  bool get _jalibWorks => hasMelonLoader && platform == 'macos';
+
+  /// JALib-dependent mods hidden because they can't work here — listed in
+  /// the banner.
   List<CatalogEntry> get unavailableJalib => [
         for (final e in catalog?.entries ?? const <CatalogEntry>[])
-          if (e.visibleOn(_v2) && e.jalib) e,
+          if (e.visibleOn(_v2) && e.jalib && !_jalibWorks) e,
       ];
 
   bool isInstalled(String slug) => scan?.installed.contains(slug) ?? false;
@@ -183,7 +194,7 @@ class AppState extends ChangeNotifier {
       isV2: isGameV2,
       gameVersion: gameVersion,
       melon: hasMelonLoader,
-      platform: Platform.operatingSystem);
+      platform: platform);
 
   String get confirmationText {
     final v = gameVersion ?? '?';
@@ -201,14 +212,21 @@ class AppState extends ChangeNotifier {
     final detected = gameVersion != null
         ? t('Detected ADOFAI $v.', 'ADOFAI $v 감지됨.')
         : t('ADOFAI version not detected.', 'ADOFAI 버전을 감지하지 못했습니다.');
+    final umm = appleSilicon
+        ? t('Native UMM — installs Unity Mod Manager directly.',
+            '네이티브 UMM — Unity Mod Manager를 직접 설치합니다.')
+        : t('UMM — patches the game the classic way (no Rosetta needed on an '
+                'Intel Mac).',
+            'UMM — 기존 방식으로 게임을 패치합니다 (Intel Mac에서는 Rosetta가 '
+                '필요 없습니다).');
     return t(
       '$detected Choose a loader below.\n\n'
-          'Native UMM — installs Unity Mod Manager directly.\n'
-          'MelonLoader (recommended) — installs MelonLoader + the UMMCompat '
+          '$umm\n'
+          'MelonLoader (recommended) — installs MelonLoader + the UMMBridge '
           'plugin; mods load from UMMMods/.',
       '$detected 아래에서 로더를 선택하세요.\n\n'
-          '네이티브 UMM — Unity Mod Manager를 직접 설치합니다.\n'
-          'MelonLoader (권장) — MelonLoader와 UMMCompat 플러그인을 설치하며, '
+          '$umm\n'
+          'MelonLoader (권장) — MelonLoader와 UMMBridge 플러그인을 설치하며, '
           '모드는 UMMMods/에서 로드됩니다.',
     );
   }
@@ -392,10 +410,12 @@ class AppState extends ChangeNotifier {
     _runInstall();
   }
 
-  /// Which install method the GUI's loader choice maps to.
-  Method _guiMethod(LoaderType l) => l == LoaderType.melonLoader
+  /// Which install method the GUI's loader choice maps to. An Intel Mac runs
+  /// the x64 game as is, so UMM there is the same patch as under Rosetta.
+  @visibleForTesting
+  Method guiMethod(LoaderType l) => l == LoaderType.melonLoader
       ? Method.ml
-      : (isGameV2 ? Method.rosetta : Method.native);
+      : (isGameV2 || !appleSilicon ? Method.rosetta : Method.native);
 
   Future<void> _runInstall() async {
     if (hasMelonLoader) {
@@ -408,7 +428,7 @@ class AppState extends ChangeNotifier {
       final name = selectedLoader == LoaderType.melonLoader
           ? 'MelonLoader'
           : 'Unity Mod Manager';
-      final call = InstallScripts.install(_guiMethod(selectedLoader));
+      final call = InstallScripts.install(guiMethod(selectedLoader));
       if (call == null) {
         log(LogLevel.error, t("$name isn't supported on this platform yet.",
             '$name은(는) 아직 이 플랫폼에서 지원되지 않습니다.'));
@@ -424,7 +444,7 @@ class AppState extends ChangeNotifier {
         return;
       }
       log(LogLevel.ok, t('$name installed.', '$name 설치 완료.'));
-      _recordMethod(_guiMethod(selectedLoader));
+      _recordMethod(guiMethod(selectedLoader));
     }
 
     // MelonLoader on macOS/Linux injects via setup_helper.sh, which Steam must
@@ -453,7 +473,7 @@ class AppState extends ChangeNotifier {
         recorded: AmmRecord.load(GamePaths.gamePath).method,
         loader: melon ? LoaderKind.melonLoader : LoaderKind.umm,
         isV2: isGameV2,
-        appleSilicon: GamePaths.isAppleSilicon(),
+        appleSilicon: appleSilicon,
         hasArm64Slice: GamePaths.hasArm64Slice()));
     if (call == null) {
       log(LogLevel.error, t("$name uninstall isn't supported on this platform yet.",
@@ -493,7 +513,7 @@ class AppState extends ChangeNotifier {
         recorded: AmmRecord.load(GamePaths.gamePath).method,
         loader: LoaderKind.umm,
         isV2: isGameV2,
-        appleSilicon: GamePaths.isAppleSilicon(),
+        appleSilicon: appleSilicon,
         hasArm64Slice: GamePaths.hasArm64Slice()));
     final inCall = InstallScripts.install(Method.ml);
     if (unCall == null || inCall == null) {

@@ -23,6 +23,15 @@ void main() {
     const Mod(id: 'Old', slug: 'old', url: 'u', v2: false),
   ];
 
+  test('merge leaves out the UMM compatibility plugins', () {
+    final c = Catalog.merge([], const [
+      ModlistMod(slug: 'ummcompat', name: 'UMMBridge'),
+      ModlistMod(slug: 'ummcompatrevival', name: 'UMMCompatRevival'),
+      ModlistMod(slug: 'overlayer', name: 'Overlayer'),
+    ]);
+    expect([for (final e in c.entries) e.slug], ['overlayer']);
+  });
+
   test('ours wins on slug collision', () {
     final c = Catalog.merge(ours, [theirs('quartz', summary: 'S'), theirs('x')]);
     expect(c.entries.map((e) => e.slug), ['old', 'quartz', 'x']);

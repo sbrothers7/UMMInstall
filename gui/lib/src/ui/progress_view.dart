@@ -100,8 +100,8 @@ class _ModMovePrompt extends StatelessWidget {
         Expanded(
           child: Text(
             state.t(
-              'Found $n UMM mod(s) in Mods/. Move them to UMMMods/ so UMMCompat loads them?',
-              'Mods/에서 $n개의 UMM 모드를 찾았습니다. UMMCompat가 로드하도록 UMMMods/로 옮길까요?',
+              'Found $n UMM mod(s) in Mods/. Move them to UMMMods/ so UMMBridge loads them?',
+              'Mods/에서 $n개의 UMM 모드를 찾았습니다. UMMBridge가 로드하도록 UMMMods/로 옮길까요?',
             ),
             style: const TextStyle(fontSize: 13),
           ),

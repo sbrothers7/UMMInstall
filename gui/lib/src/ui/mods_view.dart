@@ -18,6 +18,7 @@ class ModsView extends StatefulWidget {
 class _ModsViewState extends State<ModsView> {
   _Tab _tab = _Tab.browse;
   bool _archived = false;
+  bool _list = false; // rows instead of the card grid
   String _query = '';
   String? _category;
 
@@ -38,28 +39,29 @@ class _ModsViewState extends State<ModsView> {
     final catalogDown = state.catalogError != null && _tab != _Tab.installed;
 
     // The current tab's cards, as (name, entry, build) so filtering and the
-    // category chips work the same on every tab.
-    final List<(String, CatalogEntry?, Widget Function())> cards = switch (_tab) {
+    // category chips work the same on every tab. build(row) lays one out as
+    // a list row instead of a card.
+    final List<(String, CatalogEntry?, Widget Function(bool))> cards = switch (_tab) {
       _Tab.browse => [
           for (final e in state.browseEntries)
-            (e.name, e, () => _ModCard(entry: e, name: e.name, version: _v(_latest(e)),
+            (e.name, e, (row) => _ModCard(row: row, entry: e, name: e.name, version: _v(_latest(e)),
                 action: _browseAction(context, state, e))),
         ],
       _Tab.updates => [
           for (final u in upgrades)
-            (u.entry.name, u.entry, () => _ModCard(entry: u.entry, name: u.entry.name,
+            (u.entry.name, u.entry, (row) => _ModCard(row: row, entry: u.entry, name: u.entry.name,
                 version: '${_v(u.from) ?? '?'} → ${_v(u.to)}',
                 action: _updateButton(context, state, u.entry.slug))),
         ],
       _Tab.installed when _archived => [
           for (final a in state.archivedMods)
-            (a.name, null, () => _ModCard(name: a.name,
+            (a.name, null, (row) => _ModCard(row: row, name: a.name,
                 note: state.t('Archived — data kept', '보관됨 — 데이터 유지'),
                 action: _archivedActions(context, state, a))),
         ],
       _Tab.installed => [
           for (final i in state.installedItems)
-            (i.name, i.entry, () => _ModCard(entry: i.entry, name: i.name,
+            (i.name, i.entry, (row) => _ModCard(row: row, entry: i.entry, name: i.name,
                 version: _v(i.version),
                 note: i.entry == null
                     ? state.t('Not in the catalog', '카탈로그에 없는 모드')
@@ -163,6 +165,15 @@ class _ModsViewState extends State<ModsView> {
                   ),
                 ),
               ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                iconSize: 20,
+                tooltip: _list
+                    ? state.t('Grid view', '격자 보기')
+                    : state.t('List view', '목록 보기'),
+                icon: Icon(_list ? Icons.grid_view_rounded : Icons.view_list_rounded),
+                onPressed: () => setState(() => _list = !_list),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -182,15 +193,21 @@ class _ModsViewState extends State<ModsView> {
                 ? _ErrorState(message: state.catalogError!)
                 : shown.isEmpty
                     ? _empty(context, state)
-                    : GridView(
-                        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: 260,
-                          mainAxisExtent: 168,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                        ),
-                        children: [for (final c in shown) c.$3()],
-                      ),
+                    : _list
+                        ? ListView.separated(
+                            itemCount: shown.length,
+                            separatorBuilder: (_, _) => const SizedBox(height: 6),
+                            itemBuilder: (_, i) => shown[i].$3(true),
+                          )
+                        : GridView(
+                            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                              maxCrossAxisExtent: 260,
+                              mainAxisExtent: 172,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                            ),
+                            children: [for (final c in shown) c.$3(false)],
+                          ),
           ),
           const SizedBox(height: 12),
           Row(
@@ -379,16 +396,18 @@ TextStyle _subtle(BuildContext context) => TextStyle(
       color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
     );
 
-/// One mod: letter tile, name, author, summary, categories (or what it
-/// needs), version and downloads, and its [action].
+/// One mod: logo, name, author, summary, categories (or what it needs),
+/// downloads and version, and its [action].
 class _ModCard extends StatelessWidget {
   final CatalogEntry? entry;
   final String name;
   final String? version;
   final String? note; // replaces the summary when there's no catalog entry
   final Widget action;
+  final bool row; // one line in the list view instead of a card
 
   const _ModCard({
+    this.row = false,
     this.entry,
     required this.name,
     this.version,
@@ -406,24 +425,83 @@ class _ModCard extends StatelessWidget {
       for (final d in e?.dependencies ?? const <String>[])
         state.catalog?.find(d)?.name ?? d,
     ];
-    final details = [
-      ?version,
-      if (e?.downloads case final n?) '⬇ $n',
-    ].join(' · ');
+    final downloads = switch (e?.downloads) {
+      final n? => state.t(n == 1 ? '1 Download' : '$n Downloads', '다운로드 $n회'),
+      null => null,
+    };
+    // The version with the download count under it, small and grey.
+    Widget versionBlock(CrossAxisAlignment align) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: align,
+          children: [
+            Text(version ?? '',
+                maxLines: 1, overflow: TextOverflow.ellipsis, style: _subtle(context)),
+            if (downloads != null)
+              Text(downloads,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _subtle(context).copyWith(fontSize: 10)),
+          ],
+        );
+    final decoration = BoxDecoration(
+      color: scheme.surfaceContainer,
+      border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.5)),
+      borderRadius: BorderRadius.circular(10),
+    );
+
+    if (row) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+        decoration: decoration,
+        child: Row(
+          children: [
+            _Logo(url: e?.logo, name: name),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text.rich(
+                    TextSpan(children: [
+                      TextSpan(
+                          text: name,
+                          style: const TextStyle(
+                              fontSize: 13.5, fontWeight: FontWeight.w600)),
+                      if (e?.author case final a?)
+                        TextSpan(
+                            text: '  ${state.t('by $a', '제작: $a')}',
+                            style: _subtle(context)),
+                    ]),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(note ?? e?.summary ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: scheme.onSurface.withValues(alpha: 0.75))),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            SizedBox(width: 110, child: versionBlock(CrossAxisAlignment.end)),
+            const SizedBox(width: 12),
+            action,
+          ],
+        ),
+      );
+    }
 
     return Container(
       padding: const EdgeInsets.all(11),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainer,
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.5)),
-        borderRadius: BorderRadius.circular(10),
-      ),
+      decoration: decoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              _LetterTile(name: name),
+              _Logo(url: e?.logo, name: name),
               const SizedBox(width: 9),
               Expanded(
                 child: Column(
@@ -465,10 +543,7 @@ class _ModCard extends StatelessWidget {
           const Spacer(),
           Row(
             children: [
-              Expanded(
-                child: Text(details,
-                    maxLines: 1, overflow: TextOverflow.ellipsis, style: _subtle(context)),
-              ),
+              Expanded(child: versionBlock(CrossAxisAlignment.start)),
               action,
             ],
           ),
@@ -493,8 +568,35 @@ class _Tag extends StatelessWidget {
       );
 }
 
+/// The mod's modlist.org logo, or the letter tile while it loads, when it
+/// has none, or when it fails to load.
+class _Logo extends StatelessWidget {
+  final String? url;
+  final String name;
+  const _Logo({required this.url, required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    final tile = _LetterTile(name: name);
+    final u = url;
+    if (u == null) return tile;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Image.network(
+        u,
+        width: 38,
+        height: 38,
+        cacheWidth: 96,
+        fit: BoxFit.cover,
+        frameBuilder: (_, child, frame, sync) =>
+            frame == null && !sync ? tile : child,
+        errorBuilder: (_, _, _) => tile,
+      ),
+    );
+  }
+}
+
 /// Stand-in logo: the name's first letter on a colour picked from the name.
-/// modlist.org's logo paths don't load outside its site yet.
 class _LetterTile extends StatelessWidget {
   final String name;
   const _LetterTile({required this.name});
@@ -593,8 +695,10 @@ class _JalibBanner extends StatelessWidget {
           Expanded(
             child: Text(
               state.t(
-                'Mods that depend on JALib are temporarily unavailable and hidden: $names.',
-                'JALib을 필요로 하는 모드는 현재 사용할 수 없어 숨겨졌습니다: $names.',
+                'Mods that depend on JALib work only under MelonLoader on macOS, so '
+                    'they are hidden: $names.',
+                'JALib을 필요로 하는 모드는 macOS의 MelonLoader에서만 작동하여 숨겨졌습니다: '
+                    '$names.',
               ),
               style: TextStyle(
                   fontSize: 12,

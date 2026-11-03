@@ -32,6 +32,7 @@ class CatalogEntry {
   String? get author => theirs?.author;
   int? get downloads => theirs?.downloads;
   List<String> get categories => theirs?.categories ?? const [];
+  String? get logo => theirs?.logo;
 
   /// Game versions the mod supports: modlist.org's when it lists some, else
   /// the builds mods.json allows.
@@ -57,9 +58,17 @@ class Catalog {
 
   Catalog(this.entries, [this.warnings = const []]);
 
+  /// The MelonLoader plugins that load UMM mods (UMMBridge keeps the old
+  /// `ummcompat` slug). The loader install sets one up; as a mod it would land
+  /// in UMMMods/, and a second one starts UMM twice and crashes the game.
+  static const compatPlugins = {'ummcompat', 'ummcompatrevival'};
+
   static Catalog merge(List<Mod> ours, List<ModlistMod> theirs,
       [List<String> warnings = const []]) {
-    final bySlug = {for (final t in theirs) t.slug.toLowerCase(): t};
+    final bySlug = {
+      for (final t in theirs)
+        if (!compatPlugins.contains(t.slug.toLowerCase())) t.slug.toLowerCase(): t
+    };
     final entries = [
       for (final o in ours)
         CatalogEntry(ours: o, theirs: bySlug.remove(o.slug.toLowerCase())),

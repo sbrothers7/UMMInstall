@@ -55,11 +55,11 @@
       "id": "JipperResourcePack",
       "slug": "jrp",
       "summary": "Resource pack mod by ADOFAI YouTuber Jipper",
-      "repo": "Jongye0l/JipperResourcePack",
+      "repo": "sbrothers7/JipperResourcePack",
       "asset": "^JipperResourcePack\\.zip$",
-      "url": "https://github.com/Jongye0l/JipperResourcePack/releases/download/v1.6.0.0/JipperResourcePack.zip",
+      "url": "https://github.com/sbrothers7/JipperResourcePack/releases/download/v1.6.0.1/JipperResourcePack.zip",
       "jalib": true,
-      "version": "1.6.0.0"
+      "version": "1.6.0.1"
     },
     {
       "id": "PACL2",
@@ -134,9 +134,12 @@
       "id": "BetterCalibration",
       "slug": "bettercalibration",
       "summary": "Better input offset calibration",
-      "url": "https://jalib.jongyeol.kr/modApplicator/BetterCalibration/1.2.1.0",
+      "repo": "Jongye0l/BetterCalibration",
+      "asset": "^BetterCalibration\\.zip$",
+      "url": "https://github.com/Jongye0l/BetterCalibration/releases/download/v1.2.2.0/BetterCalibration.zip",
       "v2": false,
-      "jalib": true
+      "jalib": true,
+      "version": "1.2.2.0"
     }
   ]
 }

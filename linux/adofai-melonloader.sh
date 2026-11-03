@@ -78,22 +78,41 @@ exec "$@"
 EOF
 chmod +x "$GAME_PATH/setup_helper.sh"
 
-# Pre-create both mod folders. The UMMCompat plugin reads UMMMods/; native
+# Pre-create both mod folders. The UMMBridge plugin reads UMMMods/; native
 # MelonLoader mods go in Mods/.
 mkdir -p "$GAME_PATH/UMMMods"
 mkdir -p "$GAME_PATH/Mods"
 
-# Install UMMCompat (square3ang) — the MelonLoader plugin that loads UMM mods
-# from UMMMods/. Its zip lays down Plugins/ and UserLibs/ at the game root.
-echo "Downloading UMMCompat (square3ang)..."
-UMMCOMPAT_ZIP="$(mktemp)"
-if curl -fLsS -o "$UMMCOMPAT_ZIP" "https://github.com/modlist-org/UMMCompat/releases/latest/download/UMMCompat.zip"; then
-    unzip -o -q "$UMMCOMPAT_ZIP" -d "$GAME_PATH"
-    rm -f "$UMMCOMPAT_ZIP"
-    echo "ok:UMMCompat installed."
+# UMMBridge (modlist.org) replaces UMMCompat; two such plugins start UMM twice
+# and crash the game, so UMMCompat's files go first.
+if [ -f "$GAME_PATH/Plugins/UMMCompat.dll" ]; then
+    echo "Removing UMMCompat (replaced by UMMBridge)..."
+    rm -f "$GAME_PATH/Plugins/UMMCompat.dll"
+    for f in UnityModManager.dll UnityModManager.xml dnlib.dll Config.xml; do
+        rm -f "$GAME_PATH/UserLibs/$f"
+    done
+fi
+
+# Install UMMBridge — the MelonLoader plugin that loads UMM mods from
+# UMMMods/. Its zip names the game's data folder __gamename___Data: use the
+# game's own (the Proton build's differs from the native one).
+echo "Downloading UMMBridge..."
+BRIDGE_ZIP="$(mktemp)"
+if curl -fLsS -o "$BRIDGE_ZIP" "https://github.com/modlist-org/UMMBridge/releases/latest/download/UMMBridge.zip"; then
+    DATA_DIR="$(cd "$GAME_PATH" && ls -d -- *_Data 2>/dev/null | head -1)"
+    STAGE="$(mktemp -d)"
+    unzip -o -q "$BRIDGE_ZIP" -d "$STAGE"
+    if [ -d "$STAGE/__gamename___Data" ]; then
+        mkdir -p "$STAGE/${DATA_DIR:-ADanceOfFireAndIce_Data}"
+        cp -R "$STAGE/__gamename___Data/." "$STAGE/${DATA_DIR:-ADanceOfFireAndIce_Data}/"
+        rm -rf "$STAGE/__gamename___Data"
+    fi
+    cp -R "$STAGE/." "$GAME_PATH/"
+    rm -rf "$STAGE" "$BRIDGE_ZIP"
+    echo "ok:UMMBridge installed."
 else
-    rm -f "$UMMCOMPAT_ZIP"
-    echo "error:Failed to download UMMCompat — UMM mods in UMMMods/ won't load until it's installed."
+    rm -f "$BRIDGE_ZIP"
+    echo "error:Failed to download UMMBridge — UMM mods in UMMMods/ won't load until it's installed."
 fi
 
 echo ""

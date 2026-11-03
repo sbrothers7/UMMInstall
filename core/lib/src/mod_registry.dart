@@ -10,7 +10,7 @@ class Mod {
   final String? urlMelon; // download to use when the loader is MelonLoader
   final bool v2; // available on the v2.x (Unity 2022) build
   final bool v3; // available on the v3.x+ (Unity 6) build
-  final bool jalib; // depends on JALib (currently broken — hidden, banner shown)
+  final bool jalib; // depends on JALib (MelonLoader on macOS only; hidden otherwise)
   final String? install; // special install handler key (e.g. "quartz")
   final String? version; // newest version of `url`, when the bot tracks it
   final String? versionMelon; // same for `urlMelon`

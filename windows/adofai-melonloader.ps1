@@ -1,5 +1,5 @@
 #Requires -Version 5.1
-# Installs MelonLoader + UMMCompat for A Dance of Fire and Ice on Windows.
+# Installs MelonLoader + UMMBridge for A Dance of Fire and Ice on Windows.
 #
 # On Windows MelonLoader injects via a proxy version.dll dropped next to the
 # game exe, so there's no launch wrapper, no Homebrew/mono, and no Steam launch
@@ -85,18 +85,37 @@ $mlDir = Join-Path $GamePath 'MelonLoader'
 New-Item -ItemType Directory -Force -Path $mlDir | Out-Null
 Set-Content -LiteralPath (Join-Path $mlDir 'MelonLoader.version') -Value $MelonVersion -NoNewline
 
-# UMMCompat (square3ang) — lets UMM mods in UMMMods/ load under MelonLoader.
-$ummZip = Join-Path $env:TEMP 'adofai-ummcompat.zip'
-try {
-    Download-File 'https://github.com/modlist-org/UMMCompat/releases/latest/download/UMMCompat.zip' $ummZip
-    Expand-Archive -LiteralPath $ummZip -DestinationPath $GamePath -Force
-    Remove-Item -LiteralPath $ummZip -Force
-    Write-Output "ok:UMMCompat installed."
-} catch {
-    Write-Output "error:Failed to install UMMCompat - UMM mods in UMMMods/ won't load until it's installed."
+# UMMBridge (modlist.org) replaces UMMCompat; two such plugins start UMM twice
+# and crash the game, so UMMCompat's files go first.
+$oldCompat = Join-Path $GamePath 'Plugins\UMMCompat.dll'
+if (Test-Path -LiteralPath $oldCompat) {
+    Write-Output "Removing UMMCompat (replaced by UMMBridge)..."
+    Remove-Item -LiteralPath $oldCompat -Force
+    foreach ($f in 'UnityModManager.dll', 'UnityModManager.xml', 'dnlib.dll', 'Config.xml') {
+        Remove-Item -LiteralPath (Join-Path $GamePath "UserLibs\$f") -Force -ErrorAction SilentlyContinue
+    }
 }
 
-# Pre-create mod folders. MelonLoader mods go in Mods/; UMM mods (via UMMCompat) in UMMMods/.
+# UMMBridge — lets UMM mods in UMMMods/ load under MelonLoader. Its zip names
+# the game's data folder __gamename___Data.
+$bridgeZip = Join-Path $env:TEMP 'adofai-ummbridge.zip'
+$stage = Join-Path $env:TEMP "adofai-ummbridge-$PID"
+try {
+    Download-File 'https://github.com/modlist-org/UMMBridge/releases/latest/download/UMMBridge.zip' $bridgeZip
+    Expand-Archive -LiteralPath $bridgeZip -DestinationPath $stage -Force
+    $placeholder = Join-Path $stage '__gamename___Data'
+    if (Test-Path -LiteralPath $placeholder) {
+        Rename-Item -LiteralPath $placeholder -NewName 'A Dance of Fire and Ice_Data'
+    }
+    Copy-Item -Path (Join-Path $stage '*') -Destination $GamePath -Recurse -Force
+    Write-Output "ok:UMMBridge installed."
+} catch {
+    Write-Output "error:Failed to install UMMBridge - UMM mods in UMMMods/ won't load until it's installed."
+} finally {
+    Remove-Item -LiteralPath $bridgeZip, $stage -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+# Pre-create mod folders. MelonLoader mods go in Mods/; UMM mods (via UMMBridge) in UMMMods/.
 New-Item -ItemType Directory -Force -Path (Join-Path $GamePath 'Mods')    | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $GamePath 'UMMMods') | Out-Null
 

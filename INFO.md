@@ -12,7 +12,7 @@ After install, launch the game via Steam and press **Ctrl+F10** for the UMM menu
 
 ## Windows — PowerShell
 
-Installs MelonLoader + the UMMCompat plugin (UMM mods load via UMMCompat). MelonLoader injects through a proxy `version.dll`, so there's no launch wrapper or extra dependencies to set up.
+Installs MelonLoader + the UMMBridge plugin (UMM mods load via UMMBridge). MelonLoader injects through a proxy `version.dll`, so there's no launch wrapper or extra dependencies to set up.
 
 ```powershell
 # In PowerShell, from the windows/ folder:
@@ -49,7 +49,7 @@ UNIVERSAL=1 ./build.sh --version 1.0.10  # universal arm64+x86_64 (requires full
 
 - **In-app Homebrew install:** If Homebrew is missing, a single native macOS auth dialog appears; the installer runs as the user (via a temporary sudoers entry) and streams its output into the same progress log used for UMM. No Terminal popup or app relaunch needed.
 
-- **MelonLoader support:** On v3.x+ you can install [MelonLoader](https://melonwiki.xyz/) (recommended) instead of UMM — it auto-installs the UMMCompat plugin (square3ang), sets the Steam launch options for you, and routes mods into `UMMMods/`. If UMM is already installed, the app offers to migrate (uninstall UMM, install MelonLoader, and move existing UMM mods to `UMMMods/`). Mods that ship a dedicated MelonLoader build (e.g. Quartz) use it automatically when MelonLoader is the active loader.
+- **MelonLoader support:** On v3.x+ you can install [MelonLoader](https://melonwiki.xyz/) (recommended) instead of UMM — it auto-installs the UMMBridge plugin (on macOS a fork of modlist.org's, so JALib mods work), sets the Steam launch options for you, and routes mods into `UMMMods/`. If UMM is already installed, the app offers to migrate (uninstall UMM, install MelonLoader, and move existing UMM mods to `UMMMods/`). Mods that ship a dedicated MelonLoader build (e.g. Quartz) use it automatically when MelonLoader is the active loader.
 
 - **Bundled mod picker:** Selects compatible releases per game version automatically; mods without a v3-compatible release are hidden on v3.x+, and mods that dropped v2 support fall back to pinned older builds on v2.x.
 
@@ -62,5 +62,5 @@ The mod picker is driven by [mods.json](mods.json), fetched from this repo at la
 - `urlV2` (optional) — download used on the v2.x build.
 - `urlMelon` (optional) — download used when the active loader is MelonLoader.
 - `v2` / `v3` (default `true`) — availability per game build.
-- `jalib` (default `false`) — hidden behind a banner while JALib-dependent mods are broken.
+- `jalib` (default `false`) — depends on JALib: installable only under MelonLoader on macOS (hidden behind a banner otherwise), and never offered as an upgrade, since JALib updates its mods itself.
 - `install` (optional) — special install handler key (e.g. `quartz`, which places the plugin DLL and data folder for both the MelonLoader and UMM builds).

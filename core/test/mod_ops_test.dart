@@ -42,8 +42,13 @@ void main() {
     root.deleteSync(recursive: true);
   });
 
-  ModTarget target({bool isV2 = false, bool melon = false}) => ModTarget(
-      gameRoot: game, isV2: isV2, gameVersion: '3.4.0', melon: melon, platform: 'macos');
+  ModTarget target({bool isV2 = false, bool melon = false, String platform = 'macos'}) =>
+      ModTarget(
+          gameRoot: game,
+          isV2: isV2,
+          gameVersion: '3.4.0',
+          melon: melon,
+          platform: platform);
 
   final catalog = Catalog.merge([
     const Mod(id: 'Ours', slug: 'ours', url: 'https://x/ours.zip', version: 'v1.0'),
@@ -90,9 +95,23 @@ void main() {
       expect(File(p.join(game, 'Mods', 'Folder', 'M.dll')).existsSync(), isTrue);
     });
 
-    test('refuses jalib', () {
-      expect(ModOps.install(catalog.find('j')!, target()),
-          throwsA(predicate((e) => e.toString().contains('depends on JALib'))));
+    test('refuses jalib on UMM', () {
+      expect(
+          ModOps.install(catalog.find('j')!, target()),
+          throwsA(predicate((e) =>
+              e.toString() ==
+              'j depends on JALib, which works only under MelonLoader on macOS. '
+                  'Switch with `amm reinstall --ml`.')));
+    });
+
+    test('refuses jalib under MelonLoader on Linux', () {
+      expect(ModOps.install(catalog.find('j')!, target(melon: true, platform: 'linux')),
+          throwsA(predicate((e) => e.toString().contains('MelonLoader on macOS'))));
+    });
+
+    test('installs jalib under MelonLoader into UMMMods', () async {
+      final e = await ModOps.install(catalog.find('j')!, target(melon: true));
+      expect(e.paths, ['UMMMods/Folder']);
     });
 
     test('refuses a v2:false mod on v2', () {

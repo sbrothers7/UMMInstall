@@ -42,6 +42,12 @@ void main() {
     expect(m.categories, ['utility', 'gameplay']);
   });
 
+  test('fromJson resolves the logo path against modlist.org', () {
+    expect(ModlistMod.fromJson({...quartz, 'logo': '/logos/a.webp'}).logo,
+        'https://modlist.org/logos/a.webp');
+    expect(ModlistMod.fromJson(quartz).logo, isNull);
+  });
+
   test('fromJson tolerates missing fields', () {
     final m = ModlistMod.fromJson({'slug': 's', 'name': 'S', 'latestVersion': null});
     expect(m.summary, '');
