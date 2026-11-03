@@ -19,16 +19,6 @@
       "version": "3.1.1"
     },
     {
-      "id": "Bismuth",
-      "slug": "bismuth",
-      "summary": "Overlay and quality-of-life mod; a lite version of Quartz",
-      "repo": "PrismMods/Bismuth",
-      "asset": "^Bismuth\\.zip$",
-      "url": "https://github.com/PrismMods/Topaz/releases/download/v1.3.6/Bismuth.zip",
-      "v2": false,
-      "version": "1.3.6"
-    },
-    {
       "id": "Sapphire",
       "slug": "sapphire",
       "repo": "PrismMods/Sapphire",
