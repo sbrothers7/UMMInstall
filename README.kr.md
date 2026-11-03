@@ -24,6 +24,7 @@ curl -fsSL https://raw.githubusercontent.com/sbrothers7/UMMInstall/v2/cli/instal
 |---|---|
 | `amm install` | 기본 로더 설치 (이미 설치되어 있으면 상태 표시) |
 | `amm install --ml` / `--native` / `--rosetta` | MelonLoader / UMM 네이티브 / UMM Rosetta 설치 |
+| `amm install --umm` | 기존 패치 방식으로 UMM 설치 (`--rosetta`와 같음, Apple Silicon Mac에서만 Rosetta 사용) |
 | `amm reinstall` | 현재 로더 재설치 |
 | `amm reinstall --<method>` | 다른 방식으로 재설치 |
 | `amm uninstall` | 로더 제거 |
@@ -37,7 +38,7 @@ curl -fsSL https://raw.githubusercontent.com/sbrothers7/UMMInstall/v2/cli/instal
 | `amm upgrade <slug>` | 모드 하나 업그레이드 |
 | `amm update` | amm, ammtui, GUI 앱(응용 프로그램 폴더, Linux는 앱 메뉴에 있는 것)을 최신 릴리스로 업데이트 |
 
-`ammtui`는 대화형 메뉴를 엽니다. `-y`를 붙이면 확인을 건너뜁니다. Linux(x64)에서는 네이티브 빌드의 MelonLoader만 지원합니다.
+`ammtui`는 대화형 메뉴를 엽니다. `-y`를 붙이면 확인을 건너뜁니다. Linux(x64)에서는 네이티브 빌드에서 MelonLoader(권장) 또는 UMM(`--umm`)을 지원하며, UMM에는 `mono`와 `expect`가 필요합니다 (예: `sudo apt install mono-complete expect`).
 
 
 ## 요구 사항

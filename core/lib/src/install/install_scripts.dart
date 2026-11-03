@@ -8,8 +8,9 @@ class InstallScripts {
   static const _base =
       'https://raw.githubusercontent.com/sbrothers7/UMMInstall/v2/';
 
-  /// Native UMM is only scripted on macOS for now; Windows/Linux use MelonLoader.
-  static bool get supportsNativeUmm => Platform.isMacOS;
+  /// UMM is scripted on macOS (native or the classic patch) and Linux (the
+  /// classic patch); Windows uses MelonLoader only.
+  static bool get supportsUmm => Platform.isMacOS || Platform.isLinux;
 
   /// The install script for [m] on [os], or null when unsupported.
   static ScriptCall? install(Method m, {String? os, String? gamePath}) =>
@@ -29,9 +30,13 @@ class InstallScripts {
             ? ScriptCall('${_base}macos/$mlSh')
             : ScriptCall('${_base}macos/$ummSh', [m.name]);
       case 'linux':
-        return m == Method.ml
-            ? ScriptCall('${_base}linux/$mlSh', [gamePath ?? GamePaths.gamePath])
-            : null;
+        // UMM on Linux is the classic patch: the rosetta method, no Rosetta.
+        final game = [gamePath ?? GamePaths.gamePath];
+        return switch (m) {
+          Method.ml => ScriptCall('${_base}linux/$mlSh', game),
+          Method.rosetta => ScriptCall('${_base}linux/$ummSh', game),
+          Method.native => null,
+        };
       case 'windows':
         return m == Method.ml ? ScriptCall('${_base}windows/$mlPs') : null;
     }

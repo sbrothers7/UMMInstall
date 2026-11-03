@@ -9,11 +9,11 @@ Future<int> setDefault(Ctx c, String? value) async {
   if (value != null) {
     final m = Method.parse(value);
     if (m == null) {
-      c.out.line('Unknown method "$value". Use ml, native or rosetta.');
+      c.out.line('Unknown method "$value". Use ml, native, rosetta or umm.');
       return 2;
     }
-    if ((await c.facts()).os == 'linux' && m != Method.ml) {
-      c.out.log(LogLevel.error, 'On Linux only MelonLoader is supported.');
+    if ((await c.facts()).os == 'linux' && m == Method.native) {
+      c.out.log(LogLevel.error, 'On Linux use ml (MelonLoader) or umm (UMM).');
       return 1;
     }
     c.config.defaultMethod = m;

@@ -18,9 +18,6 @@ Method currentMethod(GameFacts f) => installedMethod(
   hasArm64Slice: f.hasArm64Slice,
 );
 
-/// UMM on Linux has no uninstall script; the ml install script clears it.
-bool _linuxUmm(GameFacts f) => f.os == 'linux' && f.loader == LoaderKind.umm;
-
 /// Prints the not-found error; true when the game is there.
 bool gameFound(Ctx c, GameFacts f) {
   if (!f.found) {
@@ -68,8 +65,7 @@ Future<int> reinstall(Ctx c, {Method? method}) async {
   }
   final current = currentMethod(f);
   final target = method ?? current;
-  final linuxUmm = _linuxUmm(f);
-  if (target == current && !linuxUmm) {
+  if (target == current) {
     if (!c.out.confirm(
       'Reinstall ${_loaderName(current)} (${current.name})? Mods stay in place.',
       yes: c.yes,
@@ -113,18 +109,16 @@ Future<int> reinstall(Ctx c, {Method? method}) async {
       return 1;
     case Proceed(:final method, :final confirm):
       final extra = confirm == null ? '' : ' $confirm';
-      final from = linuxUmm ? _loaderName(current) : current.name;
       if (!c.out.confirm(
-        'Switch from $from to ${method.name}? This uninstalls $from, installs '
-        '${method.name}, then offers to move your mods.$extra',
+        'Switch from ${current.name} to ${method.name}? This uninstalls '
+        '${current.name}, installs ${method.name}, then offers to move your '
+        'mods.$extra',
         yes: c.yes,
       )) {
         return 1;
       }
-      if (!linuxUmm) {
-        final code = await _uninstallCurrent(c, f, current);
-        if (code != 0) return code;
-      }
+      final code = await _uninstallCurrent(c, f, current);
+      if (code != 0) return code;
       return _installMethod(c, f, method);
   }
 }
@@ -136,14 +130,6 @@ Future<int> uninstall(Ctx c) async {
   if (f.loader == LoaderKind.none) {
     c.out.line('No mod loader installed.');
     return 0;
-  }
-  if (_linuxUmm(f)) {
-    c.out.log(
-      LogLevel.error,
-      "Unity Mod Manager uninstall isn't supported on Linux; run "
-      '`amm reinstall --ml` to switch to MelonLoader.',
-    );
-    return 1;
   }
   final current = currentMethod(f);
   if (!c.out.confirm(

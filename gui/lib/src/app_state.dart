@@ -212,13 +212,17 @@ class AppState extends ChangeNotifier {
     final detected = gameVersion != null
         ? t('Detected ADOFAI $v.', 'ADOFAI $v 감지됨.')
         : t('ADOFAI version not detected.', 'ADOFAI 버전을 감지하지 못했습니다.');
-    final umm = appleSilicon
-        ? t('Native UMM — installs Unity Mod Manager directly.',
-            '네이티브 UMM — Unity Mod Manager를 직접 설치합니다.')
-        : t('UMM — patches the game the classic way (no Rosetta needed on an '
-                'Intel Mac).',
-            'UMM — 기존 방식으로 게임을 패치합니다 (Intel Mac에서는 Rosetta가 '
-                '필요 없습니다).');
+    final umm = platform == 'linux'
+        ? t("UMM — patches the game with UMM's own installer (needs mono and "
+                'expect).',
+            'UMM — UMM 설치 프로그램으로 게임을 패치합니다 (mono와 expect 필요).')
+        : appleSilicon
+            ? t('Native UMM — installs Unity Mod Manager directly.',
+                '네이티브 UMM — Unity Mod Manager를 직접 설치합니다.')
+            : t('UMM — patches the game the classic way (no Rosetta needed on '
+                    'an Intel Mac).',
+                'UMM — 기존 방식으로 게임을 패치합니다 (Intel Mac에서는 Rosetta가 '
+                    '필요 없습니다).');
     return t(
       '$detected Choose a loader below.\n\n'
           '$umm\n'
@@ -231,9 +235,9 @@ class AppState extends ChangeNotifier {
     );
   }
 
-  /// Native UMM is only scripted on macOS for now; elsewhere the confirm
-  /// screen offers MelonLoader only.
-  bool get canInstallUmm => InstallScripts.supportsNativeUmm;
+  /// UMM is scripted on macOS and Linux; on Windows the confirm screen offers
+  /// MelonLoader only.
+  bool get canInstallUmm => InstallScripts.supportsUmm;
 
   // MARK: - Navigation
 

@@ -104,6 +104,8 @@ class SteamConfig {
         return SteamLaunchOptionsOutcome(error: e.toString());
       }
     }
+    // No config had a Steam apps block to write into: the user sets it by hand.
+    if (updated == 0) return const SteamLaunchOptionsOutcome(noConfig: true);
     return SteamLaunchOptionsOutcome(updated: updated, steamRunning: isSteamRunning());
   }
 
@@ -134,7 +136,7 @@ class SteamConfig {
 
   /// The unescaped Launch Options value for ADOFAI in [vdfText], or null.
   static String? readLaunchOptions(String vdfText) {
-    final apps = _blockRange(vdfText, 'apps', 0, vdfText.length);
+    final apps = _steamApps(vdfText);
     if (apps == null) return null;
     final block = _blockRange(vdfText, appId, apps[0], apps[1]);
     if (block == null) return null;
@@ -161,7 +163,7 @@ class SteamConfig {
   // MARK: - Targeted VDF edit
 
   static String? _apply(String text, String escapedValue) {
-    final apps = _blockRange(text, 'apps', 0, text.length);
+    final apps = _steamApps(text);
     if (apps == null) return null;
     final block = _blockRange(text, appId, apps[0], apps[1]);
     if (block != null) {
@@ -179,7 +181,7 @@ class SteamConfig {
   /// Blanks our LaunchOptions if it still references setup_helper.sh (so a
   /// user's own custom option is left alone).
   static String? _clear(String text) {
-    final apps = _blockRange(text, 'apps', 0, text.length);
+    final apps = _steamApps(text);
     if (apps == null) return null;
     final block = _blockRange(text, appId, apps[0], apps[1]);
     if (block == null) return null;
@@ -187,6 +189,18 @@ class SteamConfig {
     if (vr == null) return null;
     if (!text.substring(vr[0], vr[1]).contains('setup_helper.sh')) return null;
     return text.replaceRange(vr[0], vr[1], '""');
+  }
+
+  /// The body of Software/Valve/Steam/apps, where Launch Options live. The
+  /// file has another top-level "apps" block (cloud sync state) that Steam
+  /// may write first, so the first "apps" in the file can be the wrong one.
+  static List<int>? _steamApps(String s) {
+    List<int>? r = [0, s.length];
+    for (final key in const ['Software', 'Valve', 'Steam', 'apps']) {
+      r = _blockRange(s, key, r![0], r[1]);
+      if (r == null) return null;
+    }
+    return r;
   }
 
   static int _lc(int c) => (c >= 65 && c <= 90) ? c + 32 : c;

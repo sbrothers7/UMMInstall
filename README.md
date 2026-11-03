@@ -24,6 +24,7 @@ curl -fsSL https://raw.githubusercontent.com/sbrothers7/UMMInstall/v2/cli/instal
 |---|---|
 | `amm install` | Install the default loader (or show what is installed) |
 | `amm install --ml` / `--native` / `--rosetta` | Install MelonLoader / UMM native / UMM Rosetta |
+| `amm install --umm` | Install UMM with the classic patch (the same as `--rosetta`; Rosetta only on an Apple Silicon Mac) |
 | `amm reinstall` | Reinstall the current loader |
 | `amm reinstall --<method>` | Reinstall with another method |
 | `amm uninstall` | Remove the loader |
@@ -37,7 +38,7 @@ curl -fsSL https://raw.githubusercontent.com/sbrothers7/UMMInstall/v2/cli/instal
 | `amm upgrade <slug>` | Upgrade one mod |
 | `amm update` | Update amm, ammtui and the GUI app (in Applications, or on Linux the copy in your app menu) to the latest release |
 
-`ammtui` opens the interactive menu. Add `-y` to skip confirmations. On Linux (x64), only the native build with MelonLoader is supported.
+`ammtui` opens the interactive menu. Add `-y` to skip confirmations. On Linux (x64), the native build supports MelonLoader (recommended) or UMM (`--umm`), which needs `mono` and `expect` (e.g. `sudo apt install mono-complete expect`).
 
 
 ## Requirements

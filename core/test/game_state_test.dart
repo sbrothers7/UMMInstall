@@ -30,7 +30,14 @@ void main() {
       fallback: Method.ml,
     );
     expect(d, isA<Refuse>());
-    expect((d as Refuse).message, contains('--ml'));
+    expect((d as Refuse).message, allOf(contains('--ml'), contains('--umm')));
+  });
+
+  test('linux offers UMM by the classic patch, asking first', () {
+    final d = resolveInstall(facts(os: 'linux'),
+        requested: Method.rosetta, fallback: Method.ml) as Proceed;
+    expect(d.method, Method.rosetta);
+    expect(d.confirm, allOf(contains('mono'), isNot(contains('Rosetta'))));
   });
 
   test('linux uses ml', () {

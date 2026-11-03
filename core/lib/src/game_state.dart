@@ -78,9 +78,17 @@ Decision resolveInstall(
     return const Refuse('amm supports macOS and Linux only.');
   }
   if (f.os == 'linux') {
-    return m == Method.ml
-        ? const Proceed(Method.ml)
-        : const Refuse('On Linux only MelonLoader is supported. Use --ml.');
+    return switch (m) {
+      Method.ml => const Proceed(Method.ml),
+      // UMM's own installer patches the x64 game; it runs under mono.
+      Method.rosetta => const Proceed(
+        Method.rosetta,
+        confirm: 'UMM on Linux patches the game with UMM\'s own installer, '
+            'which needs mono and expect. It is untested. Continue?',
+      ),
+      Method.native =>
+        const Refuse('On Linux use --ml (MelonLoader) or --umm (UMM).'),
+    };
   }
   if (f.isV2) {
     if (requested == Method.ml || requested == Method.native) {

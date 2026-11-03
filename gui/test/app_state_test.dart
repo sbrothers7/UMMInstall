@@ -74,6 +74,15 @@ void main() {
     expect([for (final e in state.unavailableJalib) e.slug], ['j']);
   });
 
+  test('Linux offers UMM by the classic patch, naming mono', () {
+    final state = AppState()
+      ..gameVersion = '3.4.0'
+      ..appleSilicon = false
+      ..platform = 'linux';
+    expect(state.guiMethod(LoaderType.umm), Method.rosetta);
+    expect(state.confirmationText, allOf(contains('mono'), isNot(contains('Rosetta'))));
+  });
+
   test('UMM on an Intel Mac uses the plain patch, not native UMM', () {
     final state = AppState()..gameVersion = '3.4.0';
     expect((state..appleSilicon = false).guiMethod(LoaderType.umm), Method.rosetta);

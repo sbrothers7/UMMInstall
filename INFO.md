@@ -23,7 +23,7 @@ Installs MelonLoader + the UMMBridge plugin (UMM mods load via UMMBridge). Melon
 The scripts auto-detect the game across all Steam libraries (via the registry + `libraryfolders.vdf`). MelonLoader mods go in `Mods/`, UMM mods in `UMMMods/`. Launch via Steam and press **Ctrl+F10**.
 
 > [!Note]
-> Cross-platform support is in progress. Windows currently ships the MelonLoader path (the recommended loader); native Windows UMM and a Linux port are planned next, and a cross-platform GUI is being evaluated. macOS remains the only platform with the bundled GUI app for now.
+> macOS and Linux (x64) have the GUI app and `amm`. Linux offers MelonLoader (recommended) or UMM via UMM's own installer under mono (needs `mono` and `expect`). Windows ships the MelonLoader script only.
 
 ## Build from Source (Swift GUI Application)
 

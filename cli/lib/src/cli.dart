@@ -13,23 +13,26 @@ const _usage = '''
 Usage: amm <command> [options]
 
 Commands:
-  install [--ml|--native|--rosetta]     Install a mod loader
-  reinstall [--ml|--native|--rosetta]   Reinstall the loader
-  uninstall                             Remove the loader
-  default [ml|native|rosetta]           Show or set the default method
-  status                                Show the game, loader and mods
-  list (-l)                             List installed mods
-  search (-s) [<query>]                 Search the mod catalog (all if no query)
-  install --mod <slug>... (mi)          Install mods
-  mr <name>... [--keep]                 Remove mods
-  upgrade [<name>...]                   Upgrade mods
-  update                                Update amm, ammtui and the GUI app
-  tui                                   Interactive mode
-  help                                  Show this help
+  install [--ml|--native|--rosetta|--umm]     Install a mod loader
+  reinstall [--ml|--native|--rosetta|--umm]   Reinstall the loader
+  uninstall                                   Remove the loader
+  default [ml|native|rosetta|umm]             Show or set the default method
+  status                                      Show the game, loader and mods
+  list (-l)                                   List installed mods
+  search (-s) [<query>]                       Search the mod catalog (all if no query)
+  install --mod <slug>... (mi)                Install mods
+  mr <name>... [--keep]                       Remove mods
+  upgrade [<name>...]                         Upgrade mods
+  update                                      Update amm, ammtui and the GUI app
+  tui                                         Interactive mode
+  help                                        Show this help
+
+--umm is the classic UMM patch, another name for --rosetta. Only an Apple
+Silicon Mac runs it under Rosetta.
 
 Global flags: -y/--yes (skip confirmations), -h/--help''';
 
-const _methodFlags = ['ml', 'native', 'rosetta'];
+const _methodFlags = ['ml', 'native', 'rosetta', 'umm'];
 
 /// Rewrites the short aliases in the first position.
 List<String> normalize(List<String> argv) {
@@ -104,7 +107,7 @@ Future<int> runCli(List<String> argv, {Ctx Function(bool yes)? makeCtx}) async {
       if (cmd.options.contains(m) && cmd[m] as bool) m,
   ];
   if (methods.length > 1) {
-    return usageError('Use only one of --ml, --native, --rosetta.');
+    return usageError('Use only one of --ml, --native, --rosetta, --umm.');
   }
   final yes = (top['yes'] as bool) || (cmd['yes'] as bool);
   final name = cmd.name!;
@@ -115,7 +118,7 @@ Future<int> runCli(List<String> argv, {Ctx Function(bool yes)? makeCtx}) async {
   try {
     return await switch (name) {
       'install' when mod && methods.isNotEmpty => Future.value(
-        usageError('Use --mod without --ml, --native or --rosetta.'),
+        usageError('Use --mod without --ml, --native, --rosetta or --umm.'),
       ),
       'install' when mod && cmd.rest.isEmpty => Future.value(
         usageError('install --mod needs at least one mod.'),

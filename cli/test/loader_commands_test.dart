@@ -225,27 +225,20 @@ void main() {
     expect(env.sink.toString(), contains('Loader:  Unity Mod Manager\n'));
   });
 
-  test(
-    'linux reinstall --ml over UMM runs only the ml install script',
-    () async {
-      expect(await reinstall(env.ctx(facts: linuxUmm()), method: Method.ml), 0);
-      expect(env.calls, [
-        InstallScripts.install(Method.ml, os: 'linux', gamePath: env.game.path),
-      ]);
-      expect(record().method, Method.ml);
-    },
-  );
+  test('linux reinstall --ml over UMM uninstalls UMM, then installs ml', () async {
+    expect(await reinstall(env.ctx(facts: linuxUmm()), method: Method.ml), 0);
+    expect(env.calls, [
+      InstallScripts.uninstall(Method.rosetta, os: 'linux', gamePath: env.game.path),
+      InstallScripts.install(Method.ml, os: 'linux', gamePath: env.game.path),
+    ]);
+    expect(record().method, Method.ml);
+  });
 
-  test('linux uninstall with UMM explains and exits 1', () async {
-    expect(await uninstall(env.ctx(facts: linuxUmm())), 1);
-    expect(env.calls, isEmpty);
-    expect(
-      env.sink.toString(),
-      contains(
-        "Unity Mod Manager uninstall isn't supported on Linux; run "
-        '`amm reinstall --ml` to switch to MelonLoader.',
-      ),
-    );
+  test('linux uninstall with UMM runs the UMM uninstall script', () async {
+    expect(await uninstall(env.ctx(facts: linuxUmm())), 0);
+    expect(env.calls, [
+      InstallScripts.uninstall(Method.rosetta, os: 'linux', gamePath: env.game.path),
+    ]);
   });
 
   test('uninstall without loader exits 0', () async {

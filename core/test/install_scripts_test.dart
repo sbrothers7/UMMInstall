@@ -26,8 +26,12 @@ void main() {
         c('linux/adofai-melonloader.sh', ['/g']));
     expect(InstallScripts.uninstall(Method.ml, os: 'linux', gamePath: '/g'),
         c('linux/adofai-melonloader-uninstall.sh', ['/g']));
+    // Linux UMM is the classic patch, the rosetta method without Rosetta.
+    expect(InstallScripts.install(Method.rosetta, os: 'linux', gamePath: '/g'),
+        c('linux/adofai-umm.sh', ['/g']));
+    expect(InstallScripts.uninstall(Method.rosetta, os: 'linux', gamePath: '/g'),
+        c('linux/adofai-umm-uninstall.sh', ['/g']));
     expect(InstallScripts.install(Method.native, os: 'linux'), isNull);
-    expect(InstallScripts.uninstall(Method.rosetta, os: 'linux'), isNull);
   });
 
   test('windows', () {

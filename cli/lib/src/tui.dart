@@ -142,7 +142,7 @@ class PickerState {
   required Method preselect,
 }) {
   final methods = f.os == 'linux'
-      ? [Method.ml]
+      ? [Method.ml, Method.rosetta]
       : f.isV2
       ? [Method.rosetta]
       : Method.values;

@@ -23,7 +23,7 @@ MelonLoader와 UMMBridge 플러그인을 설치합니다 (UMM 모드는 UMMBridg
 스크립트는 레지스트리와 `libraryfolders.vdf`를 통해 모든 Steam 라이브러리에서 게임을 자동으로 찾습니다. MelonLoader 모드는 `Mods/`에, UMM 모드는 `UMMMods/`에 설치됩니다. Steam으로 실행 후 **Ctrl+F10**을 누르세요.
 
 > [!Note]
-> 크로스 플랫폼 지원은 진행 중입니다. Windows는 현재 MelonLoader 경로(권장 로더)를 제공하며, 네이티브 Windows UMM과 Linux 포팅이 다음으로 예정되어 있고, 크로스 플랫폼 GUI를 검토 중입니다. 현재 번들 GUI 앱은 macOS에서만 제공됩니다.
+> macOS와 Linux(x64)에서 GUI 앱과 `amm`을 제공합니다. Linux에서는 MelonLoader(권장) 또는 mono로 실행하는 UMM 자체 설치 프로그램을 통한 UMM을 사용할 수 있습니다 (`mono`와 `expect` 필요). Windows는 MelonLoader 스크립트만 제공합니다.
 
 ## 소스에서 빌드 (Swift GUI 애플리케이션)
 

@@ -101,10 +101,10 @@ void main() {
     expect(m.selected, 0);
   });
 
-  test('methodChoices offers only ml on linux', () {
+  test('methodChoices offers ml and UMM on linux', () {
     final m = methodChoices(facts(os: 'linux'), preselect: Method.rosetta);
-    expect(m.methods, [Method.ml]);
-    expect(m.selected, 0);
+    expect(m.methods, [Method.ml, Method.rosetta]);
+    expect(m.selected, 1);
   });
 
   test('picker scrolls to keep the cursor on screen', () {

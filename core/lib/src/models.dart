@@ -10,9 +10,12 @@ enum Method {
   native,
   rosetta;
 
-  /// Matches [name] case-insensitively; null when unknown.
+  /// Matches [name] case-insensitively; null when unknown. `umm` names the
+  /// classic UMM patch, which is the rosetta method without Rosetta on an
+  /// Intel Mac or Linux.
   static Method? parse(String s) {
     final l = s.toLowerCase();
+    if (l == 'umm') return rosetta;
     for (final m in values) {
       if (m.name == l) return m;
     }

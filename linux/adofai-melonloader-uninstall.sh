@@ -28,6 +28,10 @@ for T in "${TARGETS[@]}"; do
     fi
 done
 
+# UMMBridge's copy of UMM. Under MelonLoader nothing else puts UMM there (the
+# installer clears a UMM install first), and left behind it reads as one.
+rm -rf "$GAME_PATH/A Dance of Fire and Ice_Data/Managed/UnityModManager"
+
 echo ""
 echo "ok:MelonLoader uninstalled."
 echo ""

@@ -32,6 +32,13 @@ void main() {
 
   test('two method flags is a usage error', () async {
     expect((await run(['install', '--ml', '--native'])).$1, 2);
+    expect((await run(['install', '--umm', '--rosetta'])).$1, 2);
+  });
+
+  test('install --umm is a method flag', () async {
+    final (code, out) = await run(['install', '--umm']);
+    expect(code, 1);
+    expect(out, contains('ADOFAI not found'));
   });
 
   test('install --mod reaches mod install', () async {

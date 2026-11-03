@@ -75,8 +75,42 @@ grep -q 'LD_PRELOAD="MelonLoader.Bootstrap.so' "$GAME/setup_helper.sh" || fail "
 bash "$ROOT/linux/adofai-melonloader-uninstall.sh" "$GAME" >/dev/null
 [ ! -e "$GAME/MelonLoader" ] || fail "MelonLoader remains"
 [ ! -e "$GAME/setup_helper.sh" ] || fail "setup_helper.sh remains"
+# UMMBridge's copy of UMM would otherwise read as a UMM install.
+[ ! -e "$MANAGED/UnityModManager" ] || fail "UMMBridge's UMM remains after uninstall"
 
 if bash "$ROOT/linux/adofai-melonloader.sh" >/dev/null 2>&1; then fail "no-arg install succeeded"; fi
+
+# Linux UMM: UMM's Console.exe is stubbed by an expect that "installs" UMM
+# into the game path the script types at it.
+python3 -c '
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1] + "/umm.zip", "w") as z:
+    z.writestr("UnityModManager/Console.exe", "x")
+' "$TMP"
+sed -i.orig 's|\*UMMBridge\*)|*adof.ai/umm*) cp "$FIXTURES/umm.zip" "$out" ;;\n    *UMMBridge*)|' "$TMP/bin/curl"
+printf '#!/bin/sh\nexit 0\n' > "$TMP/bin/mono"
+cat > "$TMP/bin/expect" <<'STUB'
+#!/bin/sh
+game="$(sed -n 's/^ *send "\(.*\)\/\\r"$/\1/p' | head -1)"
+mkdir -p "$game/A Dance of Fire and Ice_Data/Managed/UnityModManager"
+touch "$game/A Dance of Fire and Ice_Data/Managed/UnityModManager/UnityModManager.dll"
+STUB
+chmod +x "$TMP/bin/mono" "$TMP/bin/expect"
+
+mkdir "$GAME/MelonLoader"
+if bash "$ROOT/linux/adofai-umm.sh" "$GAME" >/dev/null 2>&1; then fail "UMM installed over MelonLoader"; fi
+rmdir "$GAME/MelonLoader"
+
+out="$(bash "$ROOT/linux/adofai-umm.sh" "$GAME")" || fail "UMM install exited non-zero"
+echo "$out" | grep -q '^ok:Unity Mod Manager installed' || fail "UMM install"
+[ -f "$MANAGED/UnityModManager/UnityModManager.dll" ] || fail "UMM not in Managed"
+[ -d "$GAME/Mods" ] || fail "UMM Mods folder"
+
+echo patched > "$MANAGED/UnityEngine.CoreModule.dll"
+echo orig > "$MANAGED/UnityEngine.CoreModule.dll.bak"
+bash "$ROOT/linux/adofai-umm-uninstall.sh" "$GAME" >/dev/null
+[ "$(cat "$MANAGED/UnityEngine.CoreModule.dll")" = orig ] || fail "UMM uninstall didn't restore CoreModule"
+[ ! -e "$MANAGED/UnityModManager" ] || fail "UMM folder remains"
 
 # CLI release: asset names must be the bare binaries, and install.sh must
 # install amm plus the ammtui symlink and add it to PATH once (curl stubbed,

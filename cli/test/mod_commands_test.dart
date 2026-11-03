@@ -131,6 +131,11 @@ void main() {
     expect(Config.load(env: env.configEnv).defaultMethod, Method.ml);
   });
 
+  test('default accepts umm on linux as the classic UMM patch', () async {
+    expect(await setDefault(ctx(facts(os: 'linux')), 'umm'), 0);
+    expect(Config.load(env: env.configEnv).defaultMethod, Method.rosetta);
+  });
+
   // --- modinstall / mr / upgrade ---
 
   ModlistMod mod(String slug, {List<String> deps = const [], String? v}) =>
