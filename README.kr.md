@@ -11,8 +11,8 @@
 
 https://github.com/sbrothers7/UMMInstall/releases/latest
 
-- macOS: `ADOFAIModInstaller-macos.zip`
-- Linux (x64): `ADOFAIModInstaller-linux.tar.gz`. 원하는 곳에 압축을 풀고 `adofai-mod-installer/adofai_mod_installer`를 실행하세요. 처음 실행하면 앱 메뉴에 추가됩니다. GTK 3이 필요하며, 대부분의 데스크톱에 기본으로 설치되어 있습니다.
+- macOS: `Installer-macos.zip`
+- Linux (x64): `Installer-linux.tar.gz`. 원하는 곳에 압축을 풀고 `adofai-mod-installer/adofai_mod_installer`를 실행하세요. 처음 실행하면 앱 메뉴에 추가됩니다. GTK 3이 필요하며, 대부분의 데스크톱에 기본으로 설치되어 있습니다.
 
 ## 커맨드 라인 (amm)
 

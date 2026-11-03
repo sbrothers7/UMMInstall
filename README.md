@@ -11,8 +11,8 @@ A native macOS installer for [Unity Mod Manager](https://www.nexusmods.com/site/
 
 https://github.com/sbrothers7/UMMInstall/releases/latest
 
-- macOS: `ADOFAIModInstaller-macos.zip`
-- Linux (x64): `ADOFAIModInstaller-linux.tar.gz`. Unpack it anywhere and run `adofai-mod-installer/adofai_mod_installer`; the first launch adds it to your app menu. Needs GTK 3, which most desktops include.
+- macOS: `Installer-macos.zip`
+- Linux (x64): `Installer-linux.tar.gz`. Unpack it anywhere and run `adofai-mod-installer/adofai_mod_installer`; the first launch adds it to your app menu. Needs GTK 3, which most desktops include.
 
 ## Command line (amm)
 

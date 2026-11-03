@@ -41,7 +41,7 @@ class GithubRelease {
     if (suffix == null) return null;
     return [
       for (final MapEntry(:key, :value) in assets.entries)
-        if (key.endsWith(suffix)) value,
+        if (key.toLowerCase().endsWith(suffix)) value,
     ].firstOrNull;
   }
 }

@@ -129,7 +129,7 @@ void main() {
       Process.runSync('ditto', ['-c', '-k', '--keepParent', src, zip]);
       release('v99.0.0', {
         ammAsset()!: utf8.encode(runs),
-        'ADOFAIModInstaller-macos.zip': File(zip).readAsBytesSync(),
+        'Installer-macos.zip': File(zip).readAsBytesSync(),
       });
 
       expect(await update(env.ctx()), 0);
@@ -176,7 +176,7 @@ void main() {
     Process.runSync('tar', ['-czf', tgz, '-C', src, 'adofai-mod-installer']);
     release('v99.0.0', {
       ammAsset()!: utf8.encode(runs),
-      'ADOFAIModInstaller-linux.tar.gz': File(tgz).readAsBytesSync(),
+      'Installer-linux.tar.gz': File(tgz).readAsBytesSync(),
     });
 
     expect(await update(env.ctx()), 0);
@@ -196,7 +196,7 @@ void main() {
     Process.runSync('tar', ['-czf', tgz, '-C', '${env.tmp.path}/src', 'adofai-mod-installer']);
     release('v99.0.0', {
       ammAsset()!: utf8.encode(runs),
-      'ADOFAIModInstaller-linux.tar.gz': File(tgz).readAsBytesSync(),
+      'Installer-linux.tar.gz': File(tgz).readAsBytesSync(),
     });
 
     expect(await update(env.ctx()), 1);
@@ -218,7 +218,7 @@ void main() {
     plist(mine, id, '1.0.0');
     release('v99.0.0', {
       ammAsset()!: utf8.encode(runs),
-      'ADOFAIModInstaller-macos.zip': utf8.encode('not a zip'),
+      'Installer-macos.zip': utf8.encode('not a zip'),
     });
     expect(await update(env.ctx()), 1);
     expect(version(mine), '1.0.0');

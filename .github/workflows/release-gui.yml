@@ -1,7 +1,7 @@
 name: Release GUI (v2)
 
 # Builds the Flutter app and attaches it to the GitHub release as
-# ADOFAIModInstaller-macos.zip and ADOFAIModInstaller-linux.tar.gz, the names
+# Installer-macos.zip and Installer-linux.tar.gz, the names
 # the updaters look for (GithubRelease.guiAsset).
 on:
   push:
@@ -54,18 +54,18 @@ jobs:
 
       - name: Package macOS
         if: matrix.platform == 'macos'
-        run: ditto -c -k --keepParent "build/macos/Build/Products/Release/adofai_mod_installer.app" "ADOFAIModInstaller-macos.zip"
+        run: ditto -c -k --keepParent "build/macos/Build/Products/Release/adofai_mod_installer.app" "Installer-macos.zip"
 
       # tar keeps the executable bit; the bundle unpacks as one folder.
       - name: Package Linux
         if: matrix.platform == 'linux'
-        run: tar -czf ADOFAIModInstaller-linux.tar.gz -C build/linux/x64/release --transform 's,^bundle,adofai-mod-installer,' bundle
+        run: tar -czf Installer-linux.tar.gz -C build/linux/x64/release --transform 's,^bundle,adofai-mod-installer,' bundle
 
       - name: Attach to release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: gui/ADOFAIModInstaller-*
+          files: gui/Installer-*
 
   cli:
     # The GUI job creates the release; attaching in parallel races it.

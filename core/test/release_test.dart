@@ -60,6 +60,14 @@ void main() {
     expect(const GithubRelease('v1', {'amm-linux-x64': 'cli'}).guiAsset, isNull);
   }, testOn: 'mac-os || linux');
 
+  test('guiAsset ignores case in the file name', () {
+    const r = GithubRelease('v1', {'Installer-macOS.zip': 'mac', 'Installer-Linux.tar.gz': 'linux'});
+    expect(
+      r.guiAsset,
+      Platform.isMacOS ? 'mac' : (Abi.current() == Abi.linuxX64 ? 'linux' : null),
+    );
+  }, testOn: 'mac-os || linux');
+
   test('GithubRelease.latest throws on an HTTP error', () async {
     httpClient = MockClient((_) async => http.Response('nope', 403));
     expect(GithubRelease.latest(), throwsA(anything));

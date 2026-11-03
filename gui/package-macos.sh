@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds and packages the macOS app into ADOFAIModInstaller-macos.zip (the asset
+# Builds and packages the macOS app into Installer-macos.zip (the asset
 # name the updater expects). Windows/Linux artifacts are produced by CI
 # (.github/workflows/release-gui.yml).
 set -e
@@ -14,6 +14,6 @@ if [ ! -d "$APP" ]; then
     exit 1
 fi
 
-rm -f ADOFAIModInstaller-macos.zip
-ditto -c -k --keepParent "$APP" ADOFAIModInstaller-macos.zip
-echo "Packaged: gui/ADOFAIModInstaller-macos.zip"
+rm -f Installer-macos.zip
+ditto -c -k --keepParent "$APP" Installer-macos.zip
+echo "Packaged: gui/Installer-macos.zip"

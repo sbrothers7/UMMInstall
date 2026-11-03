@@ -45,4 +45,6 @@ app.*.map.json
 /android/app/release
 
 # Packaged release artifacts
+Installer-*.zip
+Installer-*.tar.gz
 ADOFAIModInstaller-*.zip
