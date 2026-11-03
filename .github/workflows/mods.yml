@@ -1,9 +1,10 @@
 name: mods.json
 
 # Validates mods.json on every change. Once a day, bumps entries that track a
-# GitHub repo to their newest release and commits straight to main (the apps
-# read mods.json from main). Broken links are kept in one open issue that
-# closes itself once every link works again.
+# GitHub repo to their newest release and commits straight to v2 (the apps
+# read mods.json from v2; apps before 2.1.0 read it from main, so main gets the
+# commit too). Broken links are kept in one open issue that closes itself once
+# every link works again.
 on:
   push:
     paths: ['mods.json', '.github/scripts/update_mods.py', '.github/workflows/mods.yml']
@@ -34,10 +35,9 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      # Scheduled runs start from the default branch; always work on main.
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: v2
 
       - name: Bump tracked mods
         run: python3 .github/scripts/update_mods.py update broken-links.md
@@ -50,6 +50,8 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'mods.json: bump to latest releases' -- mods.json
+          git push origin HEAD:v2
+          # A GITHUB_TOKEN push starts no workflows, so mirror main here.
           git push origin HEAD:main
 
       - name: Sync broken-links issue

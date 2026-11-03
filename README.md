@@ -5,7 +5,7 @@ English | [한국어](README.kr.md)
 A native macOS installer for [Unity Mod Manager](https://www.nexusmods.com/site/mods/21) (UMM) or [MelonLoader](https://melonwiki.xyz/) (recommended on v3.x+) on [A Dance of Fire and Ice](https://store.steampowered.com/app/977950/A_Dance_of_Fire_and_Ice/). Handles both the legacy Unity 2022 build (v2.x) and the current Unity 6 build (v3.x+), and bundles a mod select/installer.
 
 > [!Note]
-> Mods that depend on JALib (JipperResourcePack, PACL, BetterCalibration, etc.) work only with MelonLoader on macOS. There the installer ships a fork of UMMBridge that lets JALib patch the game, including on Apple Silicon.
+> Mods that depend on JALib (JipperResourcePack, PACL, BetterCalibration, etc.) are supported with MelonLoader on macOS, including Apple Silicon.
 
 ## Auto-installer Download
 
@@ -17,7 +17,7 @@ https://github.com/sbrothers7/UMMInstall/releases/latest
 ## Command line (amm)
 
 ```
-curl -fsSL https://raw.githubusercontent.com/sbrothers7/UMMInstall/main/cli/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/sbrothers7/UMMInstall/v2/cli/install.sh | bash
 ```
 
 | Command | What it does |

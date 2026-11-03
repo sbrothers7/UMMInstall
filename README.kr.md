@@ -5,7 +5,7 @@
 [A Dance of Fire and Ice](https://store.steampowered.com/app/977950/A_Dance_of_Fire_and_Ice/)용 [Unity Mod Manager](https://www.nexusmods.com/site/mods/21) (UMM) 또는 [MelonLoader](https://melonwiki.xyz/) (v3.x+ 권장)의 네이티브 macOS 설치기입니다. 레거시 Unity 2022 빌드 (v2.x)와 현재 Unity 6 빌드 (v3.x+) 모두를 지원합니다.
 
 > [!Note]
-> JALib을 필요로 하는 모드 (지퍼 리소스펙, PACL, BetterCalibration, 등)는 macOS의 MelonLoader에서만 작동합니다. macOS에서는 Apple Silicon을 포함해 JALib이 게임을 패치할 수 있도록 수정한 UMMBridge 포크를 설치합니다.
+> JALib을 필요로 하는 모드 (지퍼 리소스펙, PACL, BetterCalibration, 등)는 macOS의 MelonLoader에서 지원됩니다 (Apple Silicon 포함).
 
 ## 자동설치기 다운로드
 
@@ -17,7 +17,7 @@ https://github.com/sbrothers7/UMMInstall/releases/latest
 ## 커맨드 라인 (amm)
 
 ```
-curl -fsSL https://raw.githubusercontent.com/sbrothers7/UMMInstall/main/cli/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/sbrothers7/UMMInstall/v2/cli/install.sh | bash
 ```
 
 | 명령어 | 설명 |

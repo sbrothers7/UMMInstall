@@ -89,7 +89,11 @@
       "id": "KeyLimiter",
       "slug": "keylimiter",
       "summary": "Limits how many keys you can use in a level",
-      "url": "https://fixcdn.hyonsu.com/attachments/886661471533162526/1512516444007698512/KeyLimiter.zip"
+      "repo": "HaNyan7/KeyLimiter",
+      "asset": "^KeyLimiter-v.*\\.zip$",
+      "prerelease": true,
+      "url": "https://github.com/HaNyan7/KeyLimiter/releases/download/v1.0.0-beta.4/KeyLimiter-v1.0.0-beta.4.zip",
+      "version": "1.0.0-beta.4"
     },
     {
       "id": "EnhancedEffectRemover",

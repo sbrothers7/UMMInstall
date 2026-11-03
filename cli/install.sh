@@ -2,7 +2,7 @@
 #
 # install.sh — install the amm CLI (and the ammtui menu alias).
 #
-#   curl -fsSL https://raw.githubusercontent.com/sbrothers7/UMMInstall/main/cli/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/sbrothers7/UMMInstall/v2/cli/install.sh | bash
 #
 # Downloads the latest release binary for this OS/CPU into ~/.local/bin
 # (override with AMM_INSTALL_DIR) and puts that folder on PATH via the

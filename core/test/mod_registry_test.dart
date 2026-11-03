@@ -45,4 +45,9 @@ void main() {
     expect(mod.resolvedVersion(isGameV2: true, isMelonLoader: false), isNull);
     expect(mod.resolvedVersion(isGameV2: false, isMelonLoader: false), '1');
   });
+
+  test('mods.json is read from the v2 branch', () {
+    expect(ModRegistry.registryUrl,
+        'https://raw.githubusercontent.com/sbrothers7/UMMInstall/v2/mods.json');
+  });
 }

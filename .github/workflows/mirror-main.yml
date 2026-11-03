@@ -1,0 +1,19 @@
+name: Mirror main
+
+# Apps before 2.1.0 (and the old Swift app) read mods.json and the install
+# scripts from main. Keep main identical to v2 so they stay current.
+on:
+  push:
+    branches: [v2]
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: git push origin HEAD:main

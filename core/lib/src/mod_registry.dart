@@ -71,7 +71,7 @@ class ModRegistry {
   /// Source of truth at runtime — edit mods.json in the repo to change the mod
   /// list without rebuilding the app.
   static const registryUrl =
-      'https://raw.githubusercontent.com/sbrothers7/UMMInstall/main/mods.json';
+      'https://raw.githubusercontent.com/sbrothers7/UMMInstall/v2/mods.json';
 
   /// Fetches the mod list from the repo. Throws on any network/decode failure
   /// so the caller can surface the error rather than masking it.

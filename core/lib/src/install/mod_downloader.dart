@@ -65,8 +65,10 @@ class ModDownloader {
         if (archive.isEmpty) throw const FormatException('no entries');
         for (final f in archive) {
           if (f.isSymbolicLink) continue;
-          // Reject entries like `../x` or `/abs/x` that would land outside tmp.
-          final outPath = p.normalize(p.join(tmp.path, f.name));
+          // Windows tools write `\` separators. Reject entries like `../x` or
+          // `/abs/x` that would land outside tmp.
+          final outPath =
+              p.normalize(p.join(tmp.path, f.name.replaceAll(r'\', '/')));
           if (!p.isWithin(tmp.path, outPath)) {
             if (p.equals(tmp.path, outPath)) continue; // a `./` entry
             throw ModDownloadException('Unsafe path in archive: ${f.name}');

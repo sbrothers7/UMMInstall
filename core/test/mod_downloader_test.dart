@@ -97,6 +97,26 @@ void main() {
     }
   });
 
+  // The zip helper turns `\` into `/`; Windows tools write `\`, so patch the
+  // stored names (same length, so offsets hold).
+  List<int> backslashed(Map<String, String> files) {
+    var s = latin1.decode(zip(files));
+    for (final name in files.keys) {
+      s = s.replaceAll(name, name.replaceAll('/', r'\'));
+    }
+    return latin1.encode(s);
+  }
+
+  test('backslash paths from Windows zips become folders', () {
+    install(backslashed({'Info.json': '{}', 'ko/Mod.resources.dll': 'a'}));
+    expect(File(p.join(mods, 'Test', 'ko', 'Mod.resources.dll')).existsSync(), isTrue);
+  });
+
+  test(r'rejects ..\escaped.txt', () {
+    expect(() => install(backslashed({'../escaped.txt': 'x'})),
+        throwsA(isA<ModDownloadException>()));
+  });
+
   for (final name in ['../escaped.txt', 'a/../../escaped.txt']) {
     test('rejects $name', () {
       expect(() => install(zip({name: 'x'})), throwsA(isA<ModDownloadException>()));
