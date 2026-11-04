@@ -15,7 +15,7 @@ jobs:
   build:
     strategy:
       fail-fast: false
-      # The first attach creates the release; two at once can race.
+      # The first attach may create the release; two at once can race.
       max-parallel: 1
       matrix:
         include:
@@ -61,14 +61,20 @@ jobs:
         if: matrix.platform == 'linux'
         run: tar -czf Installer-linux.tar.gz -C build/linux/x64/release --transform 's,^bundle,adofai-mod-installer,' bundle
 
-      - name: Attach to release
+      # Uploads into the draft release.sh made, or a new draft when the tag
+      # was pushed by hand. Publishing is left to a person.
+      - name: Attach to the draft release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: gui/Installer-*
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 ||
+            gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "$GITHUB_REF_NAME" --notes ""
+          gh release upload "$GITHUB_REF_NAME" Installer-* --clobber
 
   cli:
-    # The GUI job creates the release; attaching in parallel races it.
+    # The GUI job makes sure the release exists before these upload.
     needs: build
     strategy:
       fail-fast: false
@@ -94,8 +100,9 @@ jobs:
       - run: dart pub get && dart test
       - run: dart compile exe bin/amm.dart -o amm-${{ matrix.target }}
 
-      - name: Attach to release
+      - name: Attach to the draft release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: cli/amm-*
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release upload "$GITHUB_REF_NAME" amm-* --clobber
