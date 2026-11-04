@@ -15,6 +15,7 @@ void main() {
     expect(m.handle('q'), MenuAction.quit);
     expect(m.handle('S'), MenuAction.status);
     expect(m.handle('s'), MenuAction.search);
+    expect(m.handle('c'), MenuAction.update);
     expect(m.handle('x'), isNull);
   });
 

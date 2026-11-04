@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:ffi' show Abi;
 import 'dart:io';
 
+import 'package:amm/src/config.dart';
 import 'package:amm/src/update_command.dart';
 import 'package:amm_core/amm_core.dart';
 import 'package:http/http.dart' as http;
@@ -186,24 +187,34 @@ void main() {
     expect(env.sink.toString(), contains('GUI 1.0.0 → 99.0.0 ($mine)'));
   }, skip: notLinux);
 
-  test('update leaves a Linux GUI folder that holds other files alone', () async {
-    final mine = '${env.tmp.path}/Games';
-    linuxGui(mine, '1.0.0', 'old');
-    File('$mine/save.dat').writeAsStringSync('mine');
-    menuEntry(mine);
-    linuxGui('${env.tmp.path}/src/adofai-mod-installer', '99.0.0', 'new');
-    final tgz = '${env.tmp.path}/gui.tar.gz';
-    Process.runSync('tar', ['-czf', tgz, '-C', '${env.tmp.path}/src', 'adofai-mod-installer']);
-    release('v99.0.0', {
-      ammAsset()!: utf8.encode(runs),
-      'Installer-linux.tar.gz': File(tgz).readAsBytesSync(),
-    });
+  test(
+    'update leaves a Linux GUI folder that holds other files alone',
+    () async {
+      final mine = '${env.tmp.path}/Games';
+      linuxGui(mine, '1.0.0', 'old');
+      File('$mine/save.dat').writeAsStringSync('mine');
+      menuEntry(mine);
+      linuxGui('${env.tmp.path}/src/adofai-mod-installer', '99.0.0', 'new');
+      final tgz = '${env.tmp.path}/gui.tar.gz';
+      Process.runSync('tar', [
+        '-czf',
+        tgz,
+        '-C',
+        '${env.tmp.path}/src',
+        'adofai-mod-installer',
+      ]);
+      release('v99.0.0', {
+        ammAsset()!: utf8.encode(runs),
+        'Installer-linux.tar.gz': File(tgz).readAsBytesSync(),
+      });
 
-    expect(await update(env.ctx()), 1);
-    expect(File('$mine/save.dat').readAsStringSync(), 'mine');
-    expect(File('$mine/data/old').existsSync(), isTrue);
-    expect(env.sink.toString(), contains('save.dat'));
-  }, skip: notLinux);
+      expect(await update(env.ctx()), 1);
+      expect(File('$mine/save.dat').readAsStringSync(), 'mine');
+      expect(File('$mine/data/old').existsSync(), isTrue);
+      expect(env.sink.toString(), contains('save.dat'));
+    },
+    skip: notLinux,
+  );
 
   test('update ignores a Linux menu entry whose folder is gone', () async {
     menuEntry('${env.tmp.path}/gone');
@@ -225,4 +236,87 @@ void main() {
     expect(leftovers(apps), isEmpty);
     expect(env.sink.toString(), contains("✗ Couldn't update the GUI"));
   }, skip: notMac);
+
+  test(
+    'update and autoUpdate leave the GUI alone when none is installed',
+    () async {
+      final fetched = <String>[];
+      release('v99.0.0', {
+        ammAsset()!: utf8.encode(runs),
+        'Installer-macos.zip': [0],
+        'Installer-linux.tar.gz': [0],
+      });
+      final serve = httpClient;
+      httpClient = MockClient((req) async {
+        fetched.add(req.url.toString());
+        return serve.get(req.url);
+      });
+      expect(await update(env.ctx()), 0);
+      bin.writeAsStringSync('old');
+      expect(await autoUpdate(env.ctx()), isTrue);
+      expect(bin.readAsStringSync(), runs);
+      expect(fetched.where((u) => u.contains('Installer')), isEmpty);
+      expect(env.sink.toString(), isNot(contains('GUI')));
+    },
+  );
+
+  group('autoUpdate', () {
+    late DateTime now;
+    setUp(() {
+      now = DateTime.utc(2026, 11, 4, 12);
+      final old = clock;
+      clock = () => now;
+      addTearDown(() => clock = old);
+    });
+
+    test('updates amm once a day and saves when it looked', () async {
+      release('v99.0.0', {ammAsset()!: utf8.encode(runs)});
+      final ctx = env.ctx();
+      expect(await autoUpdate(ctx), isTrue);
+      expect(bin.readAsStringSync(), runs);
+      expect(env.sink.toString(), contains('Updating to v99.0.0.'));
+      expect(Config.load(env: env.configEnv).lastUpdateCheck, now);
+
+      // Within the day it doesn't look again.
+      httpClient = MockClient((_) async => throw TestFailure('checked again'));
+      now = now.add(const Duration(hours: 23));
+      expect(await autoUpdate(env.ctx()), isFalse);
+    });
+
+    test('is quiet when everything is current', () async {
+      release('v$appVersion', {ammAsset()!: utf8.encode(runs)});
+      expect(await autoUpdate(env.ctx()), isFalse);
+      expect(bin.readAsStringSync(), 'old');
+      expect(env.sink.toString(), isEmpty);
+    });
+
+    test('is quiet offline and tries again the next day', () async {
+      httpClient = MockClient((_) async => http.Response('', 500));
+      expect(await autoUpdate(env.ctx()), isFalse);
+      expect(env.sink.toString(), isEmpty);
+      release('v99.0.0', {ammAsset()!: utf8.encode(runs)});
+      now = now.add(const Duration(days: 1));
+      expect(await autoUpdate(env.ctx()), isTrue);
+    });
+
+    test('does nothing when turned off', () async {
+      httpClient = MockClient((_) async => throw TestFailure('checked'));
+      final cfg = Config.load(env: env.configEnv)..autoUpdate = false;
+      expect(await autoUpdate(env.ctx(config: cfg)), isFalse);
+    });
+
+    test('does nothing outside an installed amm', () async {
+      ammExecutable = () => '${env.tmp.path}/bin/dart';
+      httpClient = MockClient((_) async => throw TestFailure('checked'));
+      expect(await autoUpdate(env.ctx()), isFalse);
+    });
+  });
+
+  test('auto-update shows and sets the setting', () async {
+    expect(await setAutoUpdate(env.ctx(), null), 0);
+    expect(env.sink.toString(), contains('Automatic updates are on.'));
+    expect(await setAutoUpdate(env.ctx(), 'off'), 0);
+    expect(Config.load(env: env.configEnv).autoUpdate, isFalse);
+    expect(await setAutoUpdate(env.ctx(), 'maybe'), 2);
+  });
 }

@@ -36,9 +36,10 @@ curl -fsSL https://raw.githubusercontent.com/sbrothers7/UMMInstall/v2/cli/instal
 | `amm mr <mod>` (`--keep`) | Remove a mod (`--keep` keeps its settings) |
 | `amm upgrade` | Upgrade all installed mods |
 | `amm upgrade <slug>` | Upgrade one mod |
-| `amm update` | Update amm, ammtui and the GUI app (in Applications, or on Linux the copy in your app menu) to the latest release |
+| `amm update` | Update the CLI, TUI and GUI app (in Applications, or on Linux the copy in your app menu) to the latest release |
+| `amm auto-update [on\|off]` | Show or set automatic updates (on by default: amm checks once a day before a command) |
 
-`ammtui` opens the interactive menu. Add `-y` to skip confirmations. On Linux (x64), the native build supports MelonLoader (recommended) or UMM (`--umm`), which needs `mono` and `expect` (e.g. `sudo apt install mono-complete expect`).
+`ammtui` opens the interactive menu (press `c` there to check for updates). Add `-y` to skip confirmations. On Linux (x64), the native build supports MelonLoader (recommended) or UMM (`--umm`), which needs `mono` and `expect` (e.g. `sudo apt install mono-complete expect`).
 
 
 ## Requirements

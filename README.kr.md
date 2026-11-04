@@ -36,9 +36,10 @@ curl -fsSL https://raw.githubusercontent.com/sbrothers7/UMMInstall/v2/cli/instal
 | `amm mr <mod>` (`--keep`) | 모드 제거 (`--keep`은 설정 유지) |
 | `amm upgrade` | 설치된 모든 모드 업그레이드 |
 | `amm upgrade <slug>` | 모드 하나 업그레이드 |
-| `amm update` | amm, ammtui, GUI 앱(응용 프로그램 폴더, Linux는 앱 메뉴에 있는 것)을 최신 릴리스로 업데이트 |
+| `amm update` | CLI, TUI, GUI 앱(응용 프로그램 폴더, Linux는 앱 메뉴에 있는 것)을 최신 릴리스로 업데이트 |
+| `amm auto-update [on\|off]` | 자동 업데이트 확인 또는 설정 (기본값은 켜짐: 하루에 한 번 명령 실행 전에 확인) |
 
-`ammtui`는 대화형 메뉴를 엽니다. `-y`를 붙이면 확인을 건너뜁니다. Linux(x64)에서는 네이티브 빌드에서 MelonLoader(권장) 또는 UMM(`--umm`)을 지원하며, UMM에는 `mono`와 `expect`가 필요합니다 (예: `sudo apt install mono-complete expect`).
+`ammtui`는 대화형 메뉴를 엽니다 (메뉴에서 `c`를 누르면 업데이트를 확인합니다). `-y`를 붙이면 확인을 건너뜁니다. Linux(x64)에서는 네이티브 빌드에서 MelonLoader(권장) 또는 UMM(`--umm`)을 지원하며, UMM에는 `mono`와 `expect`가 필요합니다 (예: `sudo apt install mono-complete expect`).
 
 
 ## 요구 사항

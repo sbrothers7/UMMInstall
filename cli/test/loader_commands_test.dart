@@ -167,20 +167,23 @@ void main() {
     expect(cfg.readAsStringSync(), contains('setup_helper.sh'));
   });
 
-  test('install ml closes a running Steam around the edit and reopens it',
-      () async {
-    final cfg = File('${env.tmp.path}/steam/userdata/1/config/localconfig.vdf')
-      ..createSync(recursive: true)
-      ..writeAsStringSync(
-        '"UserLocalConfigStore" { "Software" { "Valve" '
-        '{ "Steam" { "apps" { "977950" { } } } } } }',
-      );
-    SteamConfig.overrideRunning(true);
-    expect(await install(env.ctx(), method: Method.ml), 0);
-    expect(env.sink.toString(), contains('Reopened Steam.'));
-    expect(SteamConfig.isSteamRunning(), isTrue);
-    expect(cfg.readAsStringSync(), contains('setup_helper.sh'));
-  });
+  test(
+    'install ml closes a running Steam around the edit and reopens it',
+    () async {
+      final cfg =
+          File('${env.tmp.path}/steam/userdata/1/config/localconfig.vdf')
+            ..createSync(recursive: true)
+            ..writeAsStringSync(
+              '"UserLocalConfigStore" { "Software" { "Valve" '
+              '{ "Steam" { "apps" { "977950" { } } } } } }',
+            );
+      SteamConfig.overrideRunning(true);
+      expect(await install(env.ctx(), method: Method.ml), 0);
+      expect(env.sink.toString(), contains('Reopened Steam.'));
+      expect(SteamConfig.isSteamRunning(), isTrue);
+      expect(cfg.readAsStringSync(), contains('setup_helper.sh'));
+    },
+  );
 
   test('install ml leaves the config alone when Steam may not close', () async {
     final cfg = File('${env.tmp.path}/steam/userdata/1/config/localconfig.vdf')
@@ -253,19 +256,30 @@ void main() {
     expect(env.sink.toString(), contains('Loader:  Unity Mod Manager\n'));
   });
 
-  test('linux reinstall --ml over UMM uninstalls UMM, then installs ml', () async {
-    expect(await reinstall(env.ctx(facts: linuxUmm()), method: Method.ml), 0);
-    expect(env.calls, [
-      InstallScripts.uninstall(Method.rosetta, os: 'linux', gamePath: env.game.path),
-      InstallScripts.install(Method.ml, os: 'linux', gamePath: env.game.path),
-    ]);
-    expect(record().method, Method.ml);
-  });
+  test(
+    'linux reinstall --ml over UMM uninstalls UMM, then installs ml',
+    () async {
+      expect(await reinstall(env.ctx(facts: linuxUmm()), method: Method.ml), 0);
+      expect(env.calls, [
+        InstallScripts.uninstall(
+          Method.rosetta,
+          os: 'linux',
+          gamePath: env.game.path,
+        ),
+        InstallScripts.install(Method.ml, os: 'linux', gamePath: env.game.path),
+      ]);
+      expect(record().method, Method.ml);
+    },
+  );
 
   test('linux uninstall with UMM runs the UMM uninstall script', () async {
     expect(await uninstall(env.ctx(facts: linuxUmm())), 0);
     expect(env.calls, [
-      InstallScripts.uninstall(Method.rosetta, os: 'linux', gamePath: env.game.path),
+      InstallScripts.uninstall(
+        Method.rosetta,
+        os: 'linux',
+        gamePath: env.game.path,
+      ),
     ]);
   });
 

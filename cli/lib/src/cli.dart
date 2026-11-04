@@ -23,12 +23,16 @@ Commands:
   install --mod <slug>... (mi)                Install mods
   mr <name>... [--keep]                       Remove mods
   upgrade [<name>...]                         Upgrade mods
-  update                                      Update amm, ammtui and the GUI app
+  update                                      Update the CLI, TUI and GUI app
+  auto-update [on|off]                        Show or set automatic updates
   tui                                         Interactive mode
   help                                        Show this help
 
 --umm is the classic UMM patch, another name for --rosetta. Only an Apple
 Silicon Mac runs it under Rosetta.
+
+amm updates itself and the GUI once a day before a command; turn that off
+with `amm auto-update off` or AMM_NO_AUTO_UPDATE=1.
 
 Global flags: -y/--yes (skip confirmations), -h/--help''';
 
@@ -70,6 +74,7 @@ ArgParser _parser() {
     ..addCommand('mr', cmd(['keep']))
     ..addCommand('upgrade', cmd())
     ..addCommand('update', cmd())
+    ..addCommand('auto-update', cmd())
     ..addCommand('tui', cmd())
     ..addCommand('help', cmd());
 }
@@ -115,6 +120,11 @@ Future<int> runCli(List<String> argv, {Ctx Function(bool yes)? makeCtx}) async {
   final c = (makeCtx ?? (yes) => Ctx(yes: yes))(yes && name != 'tui');
   final method = methods.isEmpty ? null : Method.parse(methods.first);
   final mod = cmd.options.contains('mod') && cmd['mod'] as bool;
+  // The TUI checks on its own, before it takes over the screen.
+  if (!const {'update', 'auto-update', 'tui'}.contains(name) &&
+      await autoUpdate(c)) {
+    return relaunch(argv);
+  }
   try {
     return await switch (name) {
       'install' when mod && methods.isNotEmpty => Future.value(
@@ -137,6 +147,7 @@ Future<int> runCli(List<String> argv, {Ctx Function(bool yes)? makeCtx}) async {
       'mr' => remove(c, cmd.rest, keep: cmd['keep'] as bool),
       'upgrade' => upgrade(c, cmd.rest),
       'update' => update(c),
+      'auto-update' => setAutoUpdate(c, cmd.rest.firstOrNull),
       'tui' => runTui(c),
       _ => usageError('Unknown command "$name".'),
     };

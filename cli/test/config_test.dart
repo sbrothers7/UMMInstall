@@ -24,6 +24,19 @@ void main() {
     expect(Config.load(env: env).defaultMethod, Method.rosetta);
   });
 
+  test('auto-update settings round-trip and default to on', () {
+    expect(Config.load(env: env).autoUpdate, isTrue);
+    expect(Config.load(env: env).lastUpdateCheck, isNull);
+    final t = DateTime.utc(2026, 11, 4, 12);
+    Config.load(env: env)
+      ..autoUpdate = false
+      ..lastUpdateCheck = t
+      ..save(env: env);
+    final c = Config.load(env: env);
+    expect(c.autoUpdate, isFalse);
+    expect(c.lastUpdateCheck, t);
+  });
+
   test('corrupt file means ml', () {
     File(Config.path(env: env))
       ..parent.createSync(recursive: true)

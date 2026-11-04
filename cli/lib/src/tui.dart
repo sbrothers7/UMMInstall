@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import 'context.dart';
 import 'loader_commands.dart';
 import 'mod_commands.dart';
+import 'update_command.dart';
 
 enum MenuAction {
   status('Show status', 'S'),
@@ -20,6 +21,7 @@ enum MenuAction {
   search('Search & install mods', 's'),
   remove('Remove mods', 'r'),
   upgrade('Upgrade mods', 'u'),
+  update('Check for updates', 'c'),
   quit('Quit', 'q');
 
   final String label;
@@ -258,12 +260,14 @@ Future<int> runTui(Ctx c) async {
     c.out.line('ammtui needs a terminal.');
     return 1;
   }
+  if (await autoUpdate(c)) return relaunch(const ['tui']);
   final t = _Terminal();
   final menu = MenuState();
   final notes = <MenuAction, String>{};
   Catalog? catalog;
   var facts = await c.facts();
   var done = false;
+  var restart = false;
 
   void redraw() {
     final left = 'ADOFAI Mod Manager';
@@ -452,6 +456,20 @@ Future<int> runTui(Ctx c) async {
         );
         if (slugs == null) return;
         await run(() => upgrade(c, slugs));
+      case MenuAction.update:
+        final replaced = await t.cookedFor(() async {
+          c.out.line('Checking for updates…');
+          return (await runUpdate(c)).replacedAmm;
+        });
+        if (replaced) {
+          notes.remove(MenuAction.update);
+          stdout.write('\nRestarting on the new version. Press any key.');
+          await t.key();
+          restart = true;
+          done = true;
+          return;
+        }
+        notes.remove(MenuAction.update);
     }
     stdout.write('\nPress any key to return.');
     await t.key();
@@ -477,6 +495,14 @@ Future<int> runTui(Ctx c) async {
           if (!done && menu.canRedraw) redraw();
         })
         .catchError((_) {});
+    // Flag a newer release on the update row.
+    availableUpdate()
+        .then((r) {
+          if (r == null) return;
+          notes[MenuAction.update] = '(${r.tag} available)';
+          if (!done && menu.canRedraw) redraw();
+        })
+        .catchError((_) {});
     while (!done) {
       final a = menu.handle(await t.key());
       if (a != null) {
@@ -495,5 +521,5 @@ Future<int> runTui(Ctx c) async {
     stdout.write('\x1b[2J\x1b[H');
     await t.close();
   }
-  return 0;
+  return restart ? relaunch(const ['tui']) : 0;
 }
