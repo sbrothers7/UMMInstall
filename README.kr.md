@@ -20,6 +20,12 @@ https://github.com/sbrothers7/UMMInstall/releases/latest
 curl -fsSL https://raw.githubusercontent.com/sbrothers7/UMMInstall/v2/cli/install.sh | bash
 ```
 
+amm을 제거하려면 (설정을 유지하려면 `bash` 뒤에 `-s -- --keep-config`를 붙이세요. 모드 로더, 모드, GUI 앱은 그대로 남습니다):
+
+```
+curl -fsSL https://raw.githubusercontent.com/sbrothers7/UMMInstall/v2/cli/uninstall.sh | bash
+```
+
 | 명령어 | 설명 |
 |---|---|
 | `amm install` | 기본 로더 설치 (이미 설치되어 있으면 상태 표시) |

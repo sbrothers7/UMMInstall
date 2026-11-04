@@ -20,6 +20,12 @@ https://github.com/sbrothers7/UMMInstall/releases/latest
 curl -fsSL https://raw.githubusercontent.com/sbrothers7/UMMInstall/v2/cli/install.sh | bash
 ```
 
+To remove amm (add `-s -- --keep-config` after `bash` to keep its settings; mod loaders, mods and the GUI app stay):
+
+```
+curl -fsSL https://raw.githubusercontent.com/sbrothers7/UMMInstall/v2/cli/uninstall.sh | bash
+```
+
 | Command | What it does |
 |---|---|
 | `amm install` | Install the default loader (or show what is installed) |

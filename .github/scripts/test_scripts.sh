@@ -150,4 +150,28 @@ done
 [ -L "$TMP/inst/ammtui" ] || fail "ammtui link"
 [ "$(grep -cxF "export PATH=\"$TMP/inst:\$PATH\"" "$TMP/home/.bashrc")" = 1 ] || fail "PATH line in .bashrc"
 
+# uninstall.sh undoes install.sh and leaves the rest of the profile alone.
+# PATH is cut down so it can't find (and remove) a real amm.
+bash -n "$ROOT/cli/uninstall.sh"
+UH="$TMP/uhome"; UI="$TMP/uinst"
+mkdir -p "$UH/.config/amm" "$UI"
+printf 'alias ll="ls -l"\n\nexport PATH="/opt/x:$PATH"\n' > "$UH/.bashrc"
+cp "$UH/.bashrc" "$TMP/bashrc.orig"
+echo '{}' > "$UH/.config/amm/config.json"
+SANDBOX_PATH="$TMP/bin2:/usr/bin:/bin"
+PATH="$SANDBOX_PATH" HOME="$UH" XDG_CONFIG_HOME="$UH/.config" ZDOTDIR="$UH" SHELL=/bin/bash AMM_INSTALL_DIR="$UI" bash "$ROOT/cli/install.sh" >/dev/null
+grep -q "$UI" "$UH/.bashrc" || fail "install didn't add PATH"
+PATH="$SANDBOX_PATH" HOME="$UH" XDG_CONFIG_HOME="$UH/.config" ZDOTDIR="$UH" AMM_INSTALL_DIR="$UI" bash "$ROOT/cli/uninstall.sh" --keep-config >/dev/null
+[ ! -e "$UI/amm" ] && [ ! -L "$UI/ammtui" ] || fail "uninstall left amm or ammtui"
+cmp -s "$UH/.bashrc" "$TMP/bashrc.orig" || { diff "$TMP/bashrc.orig" "$UH/.bashrc" >&2; fail "uninstall changed .bashrc beyond the installer's lines"; }
+[ -f "$UH/.config/amm/config.json" ] || fail "--keep-config removed the settings"
+PATH="$SANDBOX_PATH" HOME="$UH" XDG_CONFIG_HOME="$UH/.config" ZDOTDIR="$UH" AMM_INSTALL_DIR="$UI" bash "$ROOT/cli/uninstall.sh" >/dev/null || fail "second uninstall failed"
+[ ! -e "$UH/.config/amm" ] || fail "uninstall left the settings"
+# A symlinked profile stays a link.
+mv "$UH/.bashrc" "$UH/bashrc.real"; ln -s bashrc.real "$UH/.bashrc"
+PATH="$SANDBOX_PATH" HOME="$UH" XDG_CONFIG_HOME="$UH/.config" ZDOTDIR="$UH" SHELL=/bin/bash AMM_INSTALL_DIR="$UI" bash "$ROOT/cli/install.sh" >/dev/null
+PATH="$SANDBOX_PATH" HOME="$UH" XDG_CONFIG_HOME="$UH/.config" ZDOTDIR="$UH" AMM_INSTALL_DIR="$UI" bash "$ROOT/cli/uninstall.sh" >/dev/null
+[ -L "$UH/.bashrc" ] || fail "uninstall replaced the profile symlink"
+cmp -s "$UH/bashrc.real" "$TMP/bashrc.orig" || fail "symlinked .bashrc not restored"
+
 echo "scripts ok"
