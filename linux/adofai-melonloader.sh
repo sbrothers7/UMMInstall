@@ -1,17 +1,38 @@
 #!/bin/bash
 set -e
 
-# $1: the game folder (contains "A Dance of Fire and Ice_Data").
+# $1: the game folder (contains the game's *_Data folder).
 GAME_PATH="${1:-}"
-DATA="$GAME_PATH/A Dance of Fire and Ice_Data"
 
-if [ -z "$GAME_PATH" ] || [ ! -d "$DATA" ]; then
+# The Unity data folder: ADanceOfFireAndIce_Data on the native build, "A Dance
+# of Fire and Ice_Data" on the Windows (Proton) one. The one holding
+# globalgamemanagers wins, as a stray folder of the other name can sit beside it.
+find_data() {
+    local n
+    for n in ADanceOfFireAndIce_Data "A Dance of Fire and Ice_Data"; do
+        if [ -f "$1/$n/globalgamemanagers" ]; then echo "$1/$n"; return; fi
+    done
+    for n in ADanceOfFireAndIce_Data "A Dance of Fire and Ice_Data"; do
+        if [ -d "$1/$n" ]; then echo "$1/$n"; return; fi
+    done
+}
+
+DATA="$(find_data "$GAME_PATH")"
+
+if [ -z "$GAME_PATH" ] || [ -z "$DATA" ]; then
     echo "error:ADOFAI not found at ${GAME_PATH:-<no game folder given>}" >&2
     exit 1
 fi
 
 if [ "$(uname -m)" != "x86_64" ]; then
     echo "error:MelonLoader on Linux supports x86_64 only." >&2
+    exit 1
+fi
+
+# MelonLoader's Linux bootstrap hooks the native player; the Windows build
+# run through Proton has no ADanceOfFireAndIce binary to hook.
+if [ ! -f "$GAME_PATH/ADanceOfFireAndIce" ]; then
+    echo "error:This is the Windows (Proton) build. Turn off Steam Play compatibility for ADOFAI (Properties > Compatibility), let Steam download the Linux build, then install again." >&2
     exit 1
 fi
 
@@ -31,15 +52,15 @@ MANAGED="$DATA/Managed"
 
 if [ -d "$MANAGED" ]; then
     for DLL in UnityEngine.CoreModule.dll UnityEngine.dll; do
-        if [ -f "$MANAGED/$DLL.bak" ]; then
-            echo "Restoring $DLL from .bak"
-            rm -f "$MANAGED/$DLL"
-            mv "$MANAGED/$DLL.bak" "$MANAGED/$DLL"
-        elif [ -f "$MANAGED/$DLL.original" ]; then
-            echo "Restoring $DLL from .original"
-            rm -f "$MANAGED/$DLL"
-            mv "$MANAGED/$DLL.original" "$MANAGED/$DLL"
-        fi
+        # UMM's installer backs up as .original_; older ones used .bak/.original.
+        for EXT in .original_ .bak .original; do
+            if [ -f "$MANAGED/$DLL$EXT" ]; then
+                echo "Restoring $DLL from $EXT"
+                rm -f "$MANAGED/$DLL"
+                mv "$MANAGED/$DLL$EXT" "$MANAGED/$DLL"
+                break
+            fi
+        done
     done
     rm -rf "$MANAGED/UnityModManager"
 fi
@@ -99,12 +120,12 @@ fi
 echo "Downloading UMMBridge..."
 BRIDGE_ZIP="$(mktemp)"
 if curl -fLsS -o "$BRIDGE_ZIP" "https://github.com/modlist-org/UMMBridge/releases/latest/download/UMMBridge.zip"; then
-    DATA_DIR="$(cd "$GAME_PATH" && ls -d -- *_Data 2>/dev/null | head -1)"
+    DATA_DIR="$(basename "$DATA")"
     STAGE="$(mktemp -d)"
     unzip -o -q "$BRIDGE_ZIP" -d "$STAGE"
     if [ -d "$STAGE/__gamename___Data" ]; then
-        mkdir -p "$STAGE/${DATA_DIR:-ADanceOfFireAndIce_Data}"
-        cp -R "$STAGE/__gamename___Data/." "$STAGE/${DATA_DIR:-ADanceOfFireAndIce_Data}/"
+        mkdir -p "$STAGE/$DATA_DIR"
+        cp -R "$STAGE/__gamename___Data/." "$STAGE/$DATA_DIR/"
         rm -rf "$STAGE/__gamename___Data"
     fi
     cp -R "$STAGE/." "$GAME_PATH/"

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:amm_core/amm_core.dart';
 import 'package:test/test.dart';
@@ -17,5 +18,26 @@ void main() {
       GamePaths.unityMajorToGameMajor(latin1.encode('no version here')),
       isNull,
     );
+  });
+
+  test('findDataDir prefers the folder holding globalgamemanagers', () {
+    final tmp = Directory.systemTemp.createTempSync('amm_game');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    // A stray Proton-named folder beside the native build's.
+    Directory('${tmp.path}/A Dance of Fire and Ice_Data/Managed')
+        .createSync(recursive: true);
+    File('${tmp.path}/ADanceOfFireAndIce_Data/globalgamemanagers')
+        .createSync(recursive: true);
+    expect(GamePaths.findDataDir(tmp.path),
+        '${tmp.path}/ADanceOfFireAndIce_Data');
+  });
+  test('findDataDir finds the Proton build and gives null for none', () {
+    final tmp = Directory.systemTemp.createTempSync('amm_game');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    expect(GamePaths.findDataDir(tmp.path), isNull);
+    File('${tmp.path}/A Dance of Fire and Ice_Data/globalgamemanagers')
+        .createSync(recursive: true);
+    expect(GamePaths.findDataDir(tmp.path),
+        '${tmp.path}/A Dance of Fire and Ice_Data');
   });
 }

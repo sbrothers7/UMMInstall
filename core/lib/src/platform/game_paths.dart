@@ -121,12 +121,31 @@ class GamePaths {
 
   static String get gameAppPath => p.join(gamePath, 'ADanceOfFireAndIce.app');
 
-  static String get _managedDir {
-    if (Platform.isMacOS) {
-      return p.join(gameAppPath, 'Contents/Resources/Data/Managed');
-    }
-    return p.join(gamePath, 'A Dance of Fire and Ice_Data', 'Managed');
+  /// The Unity data folder: `ADanceOfFireAndIce_Data` for the native Linux
+  /// build, `A Dance of Fire and Ice_Data` for the Windows (Proton) one. The
+  /// one holding globalgamemanagers wins, as a stray folder of the other name
+  /// can be left beside it.
+  static String get dataDir {
+    if (Platform.isMacOS) return p.join(gameAppPath, 'Contents/Resources/Data');
+    return findDataDir(gamePath) ??
+        p.join(gamePath, 'ADanceOfFireAndIce_Data');
   }
+
+  /// The data folder in [game] (see [dataDir]), or null when there is none.
+  static String? findDataDir(String game) {
+    const names = ['ADanceOfFireAndIce_Data', 'A Dance of Fire and Ice_Data'];
+    for (final n in names) {
+      if (File(p.join(game, n, 'globalgamemanagers')).existsSync()) {
+        return p.join(game, n);
+      }
+    }
+    for (final n in names) {
+      if (Directory(p.join(game, n)).existsSync()) return p.join(game, n);
+    }
+    return null;
+  }
+
+  static String get _managedDir => p.join(dataDir, 'Managed');
 
   static String get ummModsPath => p.join(gamePath, 'Mods');
   static String get melonModsPath => p.join(gamePath, 'UMMMods');
@@ -213,9 +232,7 @@ class GamePaths {
           : int.tryParse(RegExp(r'^\d+').stringMatch(v) ?? '');
     }
     if (Platform.isLinux) {
-      final f = File(
-        p.join(gamePath, 'A Dance of Fire and Ice_Data', 'globalgamemanagers'),
-      );
+      final f = File(p.join(dataDir, 'globalgamemanagers'));
       try {
         final raf = await f.open();
         try {

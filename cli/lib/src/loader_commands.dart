@@ -224,7 +224,7 @@ Future<int> _installMethod(Ctx c, GameFacts f, Method m) async {
     'Install failed.',
   );
   if (code != 0) return code;
-  _afterInstall(c, f, m);
+  await _afterInstall(c, f, m);
   return 0;
 }
 
@@ -236,14 +236,19 @@ Future<int> _uninstallCurrent(Ctx c, GameFacts f, Method current) async {
     'Uninstall failed.',
   );
   if (code != 0) return code;
-  if (current == Method.ml) {
-    final o = SteamConfig.clearLaunchOptions();
-    if (o.error != null) {
+  if (current == Method.ml && SteamConfig.launchOptionsSet() == true) {
+    final o = await _editLaunchOptions(c, SteamConfig.clearLaunchOptions);
+    if (o == null) {
+      c.out.log(
+        LogLevel.info,
+        'Remove setup_helper.sh from the game\'s Steam launch options, or it '
+        'won\'t start.',
+      );
+    } else if (o.error != null) {
       c.out.log(LogLevel.error, 'Failed to clear Steam launch options.');
       c.out.log(LogLevel.detail, o.error!);
     } else if (o.updated > 0) {
       c.out.log(LogLevel.ok, 'Cleared Steam launch options.');
-      _steamNote(c, o);
     }
   }
   AmmRecord.load(f.gamePath)
@@ -252,18 +257,38 @@ Future<int> _uninstallCurrent(Ctx c, GameFacts f, Method current) async {
   return 0;
 }
 
-void _steamNote(Ctx c, SteamLaunchOptionsOutcome o) {
-  if (o.steamRunning) {
-    c.out.log(
-      LogLevel.info,
-      'Fully quit and reopen Steam for it to take effect.',
-    );
+/// Runs [edit] on Steam's config with Steam closed: Steam writes its config
+/// back from memory on exit, which would undo the edit. Asks before closing
+/// Steam and reopens it after. Null when Steam stays open.
+Future<SteamLaunchOptionsOutcome?> _editLaunchOptions(
+  Ctx c,
+  SteamLaunchOptionsOutcome Function() edit,
+) async {
+  final running = SteamConfig.isSteamRunning();
+  if (running) {
+    if (!c.out.confirm(
+      'Steam has to close to save the launch options. Close and reopen it now?',
+      yes: c.yes,
+    )) {
+      return null;
+    }
+    c.out.subtitle('Closing Steam…');
+    if (!await SteamConfig.closeSteam()) {
+      c.out.log(LogLevel.error, "Steam didn't close.");
+      return null;
+    }
   }
+  final o = edit();
+  if (running) {
+    await SteamConfig.openSteam();
+    c.out.log(LogLevel.info, 'Reopened Steam.');
+  }
+  return o;
 }
 
 /// Launch options (ml), the offer to move mods between `Mods/` and
 /// `UMMMods/`, and the record update.
-void _afterInstall(Ctx c, GameFacts f, Method m) {
+Future<void> _afterInstall(Ctx c, GameFacts f, Method m) async {
   final record = AmmRecord.load(f.gamePath);
   final mods = p.join(f.gamePath, 'Mods');
   final ummMods = p.join(f.gamePath, 'UMMMods');
@@ -285,8 +310,11 @@ void _afterInstall(Ctx c, GameFacts f, Method m) {
 
   if (m == Method.ml) {
     final helper = p.join(f.gamePath, 'setup_helper.sh');
-    final o = SteamConfig.setLaunchOptions(helper);
-    if (o.noConfig) {
+    final o = await _editLaunchOptions(
+      c,
+      () => SteamConfig.setLaunchOptions(helper),
+    );
+    if (o == null || o.noConfig) {
       c.out.log(
         LogLevel.info,
         "Couldn't set Steam launch options automatically — set them manually:",
@@ -297,7 +325,6 @@ void _afterInstall(Ctx c, GameFacts f, Method m) {
       c.out.log(LogLevel.detail, o.error!);
     } else if (o.updated > 0) {
       c.out.log(LogLevel.ok, 'Steam launch options set.');
-      _steamNote(c, o);
     }
     final names = ModStore.findUmmMods(mods);
     move(

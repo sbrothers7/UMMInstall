@@ -454,7 +454,7 @@ class AppState extends ChangeNotifier {
     // MelonLoader on macOS/Linux injects via setup_helper.sh, which Steam must
     // be pointed at via launch options (Windows uses a proxy dll — no options).
     if (hasMelonLoader && !Platform.isWindows) {
-      _applyLaunchOptions();
+      await _applyLaunchOptions();
     }
 
     _complete(true, t('Installation complete.', '설치 완료.'));
@@ -496,7 +496,7 @@ class AppState extends ChangeNotifier {
     log(LogLevel.ok, t('$name uninstalled.', '$name 제거 완료.'));
     _recordMethod(null);
     if (melon && !Platform.isWindows) {
-      _clearLaunchOptions();
+      await _clearLaunchOptions();
     }
     _complete(true, t('Uninstall complete.', '제거 완료.'));
   }
@@ -549,7 +549,7 @@ class AppState extends ChangeNotifier {
     log(LogLevel.ok, t('MelonLoader installed.', 'MelonLoader 설치 완료.'));
     _recordMethod(Method.ml);
     if (!Platform.isWindows) {
-      _applyLaunchOptions();
+      await _applyLaunchOptions();
     }
 
     final found = ModStore.findUmmMods(GamePaths.ummModsPath);
@@ -606,10 +606,32 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  void _applyLaunchOptions() {
+  /// Runs [edit] on Steam's config with Steam closed: Steam writes its config
+  /// back from memory on exit, which would undo the edit. Reopens Steam after.
+  /// Null when Steam wouldn't close.
+  Future<SteamLaunchOptionsOutcome?> _withSteamClosed(
+      SteamLaunchOptionsOutcome Function() edit) async {
+    final running = SteamConfig.isSteamRunning();
+    if (running) {
+      log(LogLevel.info, t('Closing Steam to save the launch options…',
+          '실행 옵션을 저장하기 위해 Steam을 종료하는 중…'));
+      if (!await SteamConfig.closeSteam()) {
+        log(LogLevel.error, t("Steam didn't close.", 'Steam이 종료되지 않았습니다.'));
+        return null;
+      }
+    }
+    final o = edit();
+    if (running) {
+      await SteamConfig.openSteam();
+      log(LogLevel.info, t('Reopened Steam.', 'Steam을 다시 열었습니다.'));
+    }
+    return o;
+  }
+
+  Future<void> _applyLaunchOptions() async {
     final helper = p.join(GamePaths.gamePath, 'setup_helper.sh');
-    final o = SteamConfig.setLaunchOptions(helper);
-    if (o.noConfig) {
+    final o = await _withSteamClosed(() => SteamConfig.setLaunchOptions(helper));
+    if (o == null || o.noConfig) {
       log(LogLevel.info, t('Couldn\'t set Steam launch options automatically — set them manually:',
           'Steam 실행 옵션을 자동으로 설정하지 못했습니다 — 수동으로 설정하세요:'));
       log(LogLevel.detail, '"$helper" %command%');
@@ -618,21 +640,17 @@ class AppState extends ChangeNotifier {
       log(LogLevel.detail, o.error!);
     } else if (o.updated > 0) {
       log(LogLevel.ok, t('Steam launch options set.', 'Steam 실행 옵션을 설정했습니다.'));
-      if (o.steamRunning) {
-        log(LogLevel.info, t('Fully quit and reopen Steam for it to take effect.',
-            '적용하려면 Steam을 완전히 종료한 후 다시 여세요.'));
-      }
     }
   }
 
-  void _clearLaunchOptions() {
-    final o = SteamConfig.clearLaunchOptions();
-    if (o.updated > 0) {
+  Future<void> _clearLaunchOptions() async {
+    if (SteamConfig.launchOptionsSet() != true) return;
+    final o = await _withSteamClosed(SteamConfig.clearLaunchOptions);
+    if (o == null) {
+      log(LogLevel.info, t("Remove setup_helper.sh from the game's Steam launch options, or it won't start.",
+          '게임의 Steam 실행 옵션에서 setup_helper.sh를 지우지 않으면 게임이 실행되지 않습니다.'));
+    } else if (o.updated > 0) {
       log(LogLevel.ok, t('Cleared Steam launch options.', 'Steam 실행 옵션을 지웠습니다.'));
-      if (o.steamRunning) {
-        log(LogLevel.info, t('Fully quit and reopen Steam for it to take effect.',
-            '적용하려면 Steam을 완전히 종료한 후 다시 여세요.'));
-      }
     }
   }
 

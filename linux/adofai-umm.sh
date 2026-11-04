@@ -3,12 +3,26 @@ set -e
 
 # Installs Unity Mod Manager the classic way: UMM's own Console.exe (run under
 # mono) patches UnityEngine.CoreModule.dll in the game's Managed folder.
-# $1: the game folder (contains "A Dance of Fire and Ice_Data").
+# $1: the game folder (contains the game's *_Data folder).
 GAME_PATH="${1:-}"
-DATA="$GAME_PATH/A Dance of Fire and Ice_Data"
+
+# The Unity data folder: ADanceOfFireAndIce_Data on the native build, "A Dance
+# of Fire and Ice_Data" on the Windows (Proton) one. The one holding
+# globalgamemanagers wins, as a stray folder of the other name can sit beside it.
+find_data() {
+    local n
+    for n in ADanceOfFireAndIce_Data "A Dance of Fire and Ice_Data"; do
+        if [ -f "$1/$n/globalgamemanagers" ]; then echo "$1/$n"; return; fi
+    done
+    for n in ADanceOfFireAndIce_Data "A Dance of Fire and Ice_Data"; do
+        if [ -d "$1/$n" ]; then echo "$1/$n"; return; fi
+    done
+}
+
+DATA="$(find_data "$GAME_PATH")"
 MANAGED="$DATA/Managed"
 
-if [ -z "$GAME_PATH" ] || [ ! -d "$DATA" ]; then
+if [ -z "$GAME_PATH" ] || [ -z "$DATA" ]; then
     echo "error:ADOFAI not found at ${GAME_PATH:-<no game folder given>}" >&2
     exit 1
 fi

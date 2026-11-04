@@ -79,6 +79,8 @@ TestEnv testEnv() {
   final env = TestEnv._(Directory.systemTemp.createTempSync('amm_cli'));
   GamePaths.overrideGamePath(env.game.path);
   SteamConfig.overrideRoots(['${env.tmp.path}/steam']);
+  // Never close or start the real Steam client.
+  SteamConfig.overrideRunning(false);
   httpClient = MockClient((req) async {
     env.httpCalls++;
     throw TestFailure('unexpected network call: ${req.url}');
@@ -86,6 +88,7 @@ TestEnv testEnv() {
   addTearDown(() {
     GamePaths.overrideGamePath(null);
     SteamConfig.overrideRoots(null);
+    SteamConfig.overrideRunning(null);
     httpClient = http.Client();
     env.tmp.deleteSync(recursive: true);
     expect(env.httpCalls, 0, reason: 'a test used the network');

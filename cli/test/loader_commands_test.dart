@@ -167,6 +167,34 @@ void main() {
     expect(cfg.readAsStringSync(), contains('setup_helper.sh'));
   });
 
+  test('install ml closes a running Steam around the edit and reopens it',
+      () async {
+    final cfg = File('${env.tmp.path}/steam/userdata/1/config/localconfig.vdf')
+      ..createSync(recursive: true)
+      ..writeAsStringSync(
+        '"UserLocalConfigStore" { "Software" { "Valve" '
+        '{ "Steam" { "apps" { "977950" { } } } } } }',
+      );
+    SteamConfig.overrideRunning(true);
+    expect(await install(env.ctx(), method: Method.ml), 0);
+    expect(env.sink.toString(), contains('Reopened Steam.'));
+    expect(SteamConfig.isSteamRunning(), isTrue);
+    expect(cfg.readAsStringSync(), contains('setup_helper.sh'));
+  });
+
+  test('install ml leaves the config alone when Steam may not close', () async {
+    final cfg = File('${env.tmp.path}/steam/userdata/1/config/localconfig.vdf')
+      ..createSync(recursive: true)
+      ..writeAsStringSync(
+        '"UserLocalConfigStore" { "Software" { "Valve" '
+        '{ "Steam" { "apps" { "977950" { } } } } } }',
+      );
+    SteamConfig.overrideRunning(true);
+    expect(await install(env.ctx(yes: false), method: Method.ml), 0);
+    expect(env.sink.toString(), contains('set them manually'));
+    expect(cfg.readAsStringSync(), isNot(contains('setup_helper.sh')));
+  });
+
   test('failed script exits 1 and records nothing', () async {
     env.scriptExit = 1;
     expect(await install(env.ctx(), method: Method.ml), 1);
